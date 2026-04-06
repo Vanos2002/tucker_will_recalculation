@@ -27,7 +27,7 @@ inline constexpr double m2 = m2_solar / M_total_solar;                 // Mass o
 inline constexpr double M = m1 + m2;                                   // Total mass of the system, defined as M=1
 inline constexpr double mu = m1 * m2 / M;                              // Reduced mass in code units   
 inline constexpr double eta = mu / M;                                   // Symmetric mass ratio in code units
-const double Mc = pow(m1 * m2, 0.6) * pow(M, -0.2);         // Chirp mass in code units
+const double Mc = std::pow(m1 * m2, 0.6) * std::pow(M, -0.2);         // Chirp mass in code units
 inline constexpr double M_kg = M_total_solar * M_sun;                  // Total mass in kg
 
 inline constexpr double time_unit_seconds = G_SI * M_kg / (c_SI * c_SI * c_SI);  // 1 code unit in seconds
@@ -171,7 +171,7 @@ double A_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v
         for (int m = 0; m <= N - l; ++m) {
             int n = N - l - m;
             if (n >= 0) {
-                sum += coeffs.A(l, m, n) * pow(r_dot_sq, m) * pow(v_dot_v, n) * pow(GM_over_r, l) / pow(c_val, 2 * N);
+                sum += coeffs.A(l, m, n) * std::pow(r_dot_sq, m) * std::pow(v_dot_v, n) * std::pow(GM_over_r, l) / std::pow(c_val, 2 * N);
             }
         }
     }
@@ -185,7 +185,7 @@ double B_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v
         for (int m = 0; m <= N - l; ++m) {
             int n = N - l - m;
             if (n >= 0) {
-                sum += coeffs.B(l, m, n) * pow(r_dot_sq, m) * pow(v_dot_v, n) * pow(GM_over_r, l) / pow(c_val, 2 * N);
+                sum += coeffs.B(l, m, n) * std::pow(r_dot_sq, m) * std::pow(v_dot_v, n) * std::pow(GM_over_r, l) / std::pow(c_val, 2 * N);
             }
         }
     }
@@ -200,7 +200,7 @@ double A_rr(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& 
         for (int m = 0; m <= N - l; ++m) {
             int n = N - l - m;
             if (n >= 0) {
-                sum += coeffs.C(l, m, n) * pow(r_dot_sq, m) * pow(v_dot_v, n) * pow(GM_over_r, l) / pow(c_val, 2 * N);
+                sum += coeffs.C(l, m, n) * std::pow(r_dot_sq, m) * std::pow(v_dot_v, n) * std::pow(GM_over_r, l) / std::pow(c_val, 2 * N);
             }
         }
     }
@@ -214,7 +214,7 @@ double B_rr(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& 
         for (int m = 0; m <= N - l; ++m) {
             int n = N - l - m;
             if (n >= 0) {
-                sum += coeffs.D(l, m, n) * pow(r_dot_sq, m) * pow(v_dot_v, n) * pow(GM_over_r, l) / pow(c_val, 2 * N);
+                sum += coeffs.D(l, m, n) * std::pow(r_dot_sq, m) * std::pow(v_dot_v, n) * std::pow(GM_over_r, l) / std::pow(c_val, 2 * N);
             }
         }
     }
@@ -360,7 +360,7 @@ double ScriptCapitalRrr(const PNCoeffs& coeffs, const double& p, const double& e
     double r_dot = rDot(p, e, alpha, beta, phi);
     double aplusbrr = AplusBrr(coeffs, p, e, alpha, beta, phi, c_val, PNorder);
     double epsilon = 1.0 / c_val;  // Since c = 1/ε in geometrized units, but ε is small, but in code c=1, so ε=1
-    return (8.0 / 5.0) * eta * pow(epsilon, 3) * pow(G * M, 2) / pow(norm_r, 3) * r_dot * aplusbrr;
+    return (8.0 / 5.0) * eta * std::pow(epsilon, 3) * std::pow(G * M, 2) / std::pow(norm_r, 3) * r_dot * aplusbrr;
 }
 
 
@@ -369,7 +369,7 @@ double ScriptCapitalSrr(const PNCoeffs& coeffs, const double& p, const double& e
     double btotrr = Btotrr(coeffs, p, e, alpha, beta, phi, c_val, PNorder + 3);  // Sum up to PNorder + 3
     double epsilon = 1.0 / c_val;
     double GM_over_normr_sq = G * M / (norm_r * norm_r);
-    return (8.0 / 5.0) * eta * pow(epsilon, 3) * pow(GM_over_normr_sq, 2) * sqrt(G * M * p) * btotrr;
+    return (8.0 / 5.0) * eta * std::pow(epsilon, 3) * std::pow(GM_over_normr_sq, 2) * sqrt(G * M * p) * btotrr;
 }
 
 // Full equations of motion right-hand sides combining conservative and radiation reaction parts
@@ -437,8 +437,8 @@ struct YpSeries {
     std::array<std::vector<YpFunction>, 3> terms;
 };
 
-inline double epsilonPow(int order, double epsilon) {
-    return pow(epsilon, order);
+inline double epsilonstd::pow(int order, double epsilon) {
+    return std::pow(epsilon, order);
 }
 
 double Yexp(const YpSeries& yps, int idx, double pt, double alpha_t, double beta_t, double phi, double epsilon) {
@@ -446,7 +446,7 @@ double Yexp(const YpSeries& yps, int idx, double pt, double alpha_t, double beta
     for (int i = NonZeroOrd; i <= Ord - NonZeroOrd; ++i) {
         int termIndex = i - NonZeroOrd;
         if (termIndex >= 0 && termIndex < static_cast<int>(yps.terms[idx].size())) {
-            sum += epsilonPow(i, epsilon) * yps.terms[idx][termIndex](pt, alpha_t, beta_t, phi);
+            sum += epsilonstd::pow(i, epsilon) * yps.terms[idx][termIndex](pt, alpha_t, beta_t, phi);
         }
     }
     return sum;
@@ -538,7 +538,7 @@ PhiFunc makeYSolPhi(const PhiFunc& qcoef) {
 State3 Gseries(const QSeries& qseries, const PNCoeffs& coeffs, const State3& xphi, double phi, double epsilon, int PNorder) {
     State3 result = {0.0, 0.0, 0.0};
     for (int k = 0; k < static_cast<int>(QOrders.size()); ++k) {
-        double orderFactor = epsilonPow(QOrders[k], epsilon);
+        double orderFactor = epsilonstd::pow(QOrders[k], epsilon);
         for (int idx = 0; idx < 3; ++idx) {
             result[idx] += orderFactor * qseries.terms[k][idx](coeffs, xphi[0], xphi[1], xphi[2], phi, PNorder);
         }
@@ -732,13 +732,13 @@ double x_TW(const double& p) {
 // Tucker-Will result of de/dtheta
 // term1...2.5PN, term2...3.5PN, term3...4PN, term4...4.5PN
 double de_TW_dtheta(const double& e, const double& x_TW) {
-    double term1 = -((304.0 + 121.0 * e * e) / 15.0) * eta * e * pow(x_TW, -5.0 / 2.0);
-    double factor1 = (1.0 / 30.0) * eta * e * pow(x_TW, - 7.0 / 2.0);
+    double term1 = -((304.0 + 121.0 * e * e) / 15.0) * eta * e * std::pow(x_TW, -5.0 / 2.0);
+    double factor1 = (1.0 / 30.0) * eta * e * std::pow(x_TW, - 7.0 / 2.0);
     double term2_1 = factor1 * ((1.0/28.0) * (144392.0 - 34768.0 * e * e - 2251.0 * e * e * e * e));
     double term2_2 = factor1 * eta * (1272.0 - 1829.0 * e * e - 538.0 * e * e * e * e);
-    double factor2 = - (1.0 / 34560.0) * eta * PI * e * pow(x_TW, -4.0);
+    double factor2 = - (1.0 / 34560.0) * eta * PI * e * std::pow(x_TW, -4.0);
     double term3 = factor2 * (4538880.0 + 6876288.0 * e * e + 581208.0 * e * e * e * e + 623.0 * e * e * e * e * e * e);
-    double factor3 = - (1.0 / 120.0) * eta * e * pow(x_TW, - 9.0 / 2.0);
+    double factor3 = - (1.0 / 120.0) * eta * e * std::pow(x_TW, - 9.0 / 2.0);
     double term4_1 = factor3 * ((1.0 / 252.0) * (43837360.0 + 4258932.0 * e * e - 1211290.0 * e *e * e * e + 77535.0 * e * e * e * e * e * e));
     double term4_2 = factor3 * eta / 14.0 * (1239608.0 - 3232202.0 * e * e + 898433.0 * e * e * e * e + 13130.0 * e * e * e * e * e * e);
     double term4_3 = - factor3 * eta * eta * (9216.0 + 24353.0 * e * e + 45704.0 * e * e * e * e + 4304.0 * e * e * e * e * e * e);
@@ -750,13 +750,13 @@ double de_TW_dtheta(const double& e, const double& x_TW) {
 // Tucker-Will result of dx/dtheta
 
 double dx_TW_dtheta(const double& e, const double& x_TW) {
-    double term1 = - (8.0 / 5.0) * eta * pow(x_TW, -3.0 / 2.0) * (8.0 + 7.0 * e * e);
-    double factor1 = (1.0 / 15.0) * eta * pow(x_TW, - 5.0 / 2.0);
+    double term1 = - (8.0 / 5.0) * eta * std::pow(x_TW, -3.0 / 2.0) * (8.0 + 7.0 * e * e);
+    double factor1 = (1.0 / 15.0) * eta * std::pow(x_TW, - 5.0 / 2.0);
     double term2_1 = factor1 * ((1.0 / 14.0) * (22072.0 - 6064.0 * e * e - 1483.0 * e * e * e * e));
     double term2_2 = factor1 * 4.0 * eta * (36.0 - 127.0 * e * e - 79.0 * e * e * e * e);
-    double factor2 = - (1.0 / 360.0) * eta * PI * pow(x_TW, - 3.0);
+    double factor2 = - (1.0 / 360.0) * eta * PI * std::pow(x_TW, - 3.0);
     double term3 = factor2 * (18432.0 + 55872.0 * e * e + 7056.0 * e * e * e * e * e - 49.0 * e * e * e * e * e * e);
-    double factor3 = - (1.0 / 15.0) * eta * pow(x_TW, - 7.0 / 2.0);
+    double factor3 = - (1.0 / 15.0) * eta * std::pow(x_TW, - 7.0 / 2.0);
     double term4_1 = factor3 / 756.0 * (8272600.0 + 777972.0 * e * e - 947991.0 * e * e * e * e - 4743.0 * e * e * e * e * e * e);
     double term4_2 = factor3 * eta / 84.0 * (232328.0 - 1581612.0 * e * e + 598485.0 * e * e * e * e + 6300.0 * e * e * e * e * e * e);
     double term4_3 = - factor3 * eta * eta * (384.0 + 1025.0 * e * e + 5276.0 * e * e * e * e + 632.0 * e * e * e * e * e * e);
