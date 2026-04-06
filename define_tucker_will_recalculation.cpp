@@ -437,7 +437,7 @@ struct YpSeries {
     std::array<std::vector<YpFunction>, 3> terms;
 };
 
-inline double epsilonstd::pow(int order, double epsilon) {
+inline double epsilonPow(int order, double epsilon) {
     return std::pow(epsilon, order);
 }
 
@@ -446,7 +446,7 @@ double Yexp(const YpSeries& yps, int idx, double pt, double alpha_t, double beta
     for (int i = NonZeroOrd; i <= Ord - NonZeroOrd; ++i) {
         int termIndex = i - NonZeroOrd;
         if (termIndex >= 0 && termIndex < static_cast<int>(yps.terms[idx].size())) {
-            sum += epsilonstd::pow(i, epsilon) * yps.terms[idx][termIndex](pt, alpha_t, beta_t, phi);
+            sum += epsilonPow(i, epsilon) * yps.terms[idx][termIndex](pt, alpha_t, beta_t, phi);
         }
     }
     return sum;
@@ -538,7 +538,7 @@ PhiFunc makeYSolPhi(const PhiFunc& qcoef) {
 State3 Gseries(const QSeries& qseries, const PNCoeffs& coeffs, const State3& xphi, double phi, double epsilon, int PNorder) {
     State3 result = {0.0, 0.0, 0.0};
     for (int k = 0; k < static_cast<int>(QOrders.size()); ++k) {
-        double orderFactor = epsilonstd::pow(QOrders[k], epsilon);
+        double orderFactor = epsilonPow(QOrders[k], epsilon);
         for (int idx = 0; idx < 3; ++idx) {
             result[idx] += orderFactor * qseries.terms[k][idx](coeffs, xphi[0], xphi[1], xphi[2], phi, PNorder);
         }
