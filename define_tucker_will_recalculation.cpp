@@ -10,33 +10,33 @@ using namespace std;
 
 
 // Constants (geometrized units)
-const double G = 1.0;               // Gravitational constant in geometrized units
-const double c = 1.0;               // Speed of light in geometrized units    
+inline constexpr double G = 1.0;               // Gravitational constant in geometrized units
+inline constexpr double c = 1.0;               // Speed of light in geometrized units    
 
-const double M_sun = 1.98847e30;                // 1 Solar mass in kg
-const double G_SI = 6.6743e-11;                 // Gravitational constant in m^3/kg/s^2
-const double c_SI = 299792458;       
+inline constexpr double M_sun = 1.98847e30;                // 1 Solar mass in kg
+inline constexpr double G_SI = 6.6743e-11;                 // Gravitational constant in m^3/kg/s^2
+inline constexpr double c_SI = 299792458;       
 
 // Masses
-const double m1_solar = 1.0;                        // Mass of black hole 1 in Solar masses
-const double m2_solar = 1.0;                        // Mass of black hole 2 in Solar masses
-const double M_total_solar = m1_solar + m2_solar;   // Total mass of the system in Solar masses
+inline constexpr double m1_solar = 1.0;                        // Mass of black hole 1 in Solar masses
+inline constexpr double m2_solar = 1.0;                        // Mass of black hole 2 in Solar masses
+inline constexpr double M_total_solar = m1_solar + m2_solar;   // Total mass of the system in Solar masses
 
-const double m1 = m1_solar / M_total_solar;                 // Mass of black hole 1
-const double m2 = m2_solar / M_total_solar;                 // Mass of black hole 2
-const double M = m1 + m2;                                   // Total mass of the system, defined as M=1
-const double mu = m1 * m2 / M;                              // Reduced mass in code units   
-const double eta = mu / M;                                   // Symmetric mass ratio in code units
+inline constexpr double m1 = m1_solar / M_total_solar;                 // Mass of black hole 1
+inline constexpr double m2 = m2_solar / M_total_solar;                 // Mass of black hole 2
+inline constexpr double M = m1 + m2;                                   // Total mass of the system, defined as M=1
+inline constexpr double mu = m1 * m2 / M;                              // Reduced mass in code units   
+inline constexpr double eta = mu / M;                                   // Symmetric mass ratio in code units
 const double Mc = pow(m1 * m2, 0.6) * pow(M, -0.2);         // Chirp mass in code units
-const double M_kg = M_total_solar * M_sun;                  // Total mass in kg
+inline constexpr double M_kg = M_total_solar * M_sun;                  // Total mass in kg
 
-const double time_unit_seconds = G_SI * M_kg / (c_SI * c_SI * c_SI);  // 1 code unit in seconds
-const double sep_unit_meters = G_SI * M_kg / (c_SI * c_SI);           // 1 code unit in meters
+inline constexpr double time_unit_seconds = G_SI * M_kg / (c_SI * c_SI * c_SI);  // 1 code unit in seconds
+inline constexpr double sep_unit_meters = G_SI * M_kg / (c_SI * c_SI);           // 1 code unit in meters
 
 
 
-double PNorderSetting = 9;
-double PNorder = PNorderSetting - 3;
+const int PNorderSetting = 9;
+const int PNorder = PNorderSetting - 3;
 
 
 // M_PI is not constexpr in <cmath>, so define our own
