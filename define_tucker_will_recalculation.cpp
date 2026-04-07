@@ -1,4 +1,4 @@
-// This code compares...
+// This code compares the 4.5PN coefficients from Tucker & Will (2021) with the ones from the Mathematica notebook made by Jan Fereisl
 
 #include <iostream>
 #include <fstream>
