@@ -166,7 +166,7 @@ constexpr PNCoeffs buildCoefficients(const bool include_4p5PN = true)
 
 // We omit including the 4.5PN gauge coefficients as they dissappear orbit-averaged equations for the orbit elements (as stated in the paper and simultaneously confirmed by Jan Fereisl)
 
-// Defining the PN terms from the previous coefficients (for direct use in the equations of motion)
+// Defining the PN terms from the previous coefficients (eq. 2.2 in paper for direct use in the equations of motion)
 // Conservative term (1PN, 2PN, 3PN)
 double A_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val) {
     double sum = 0.0;
@@ -420,6 +420,7 @@ static const int Ord = static_cast<int>(PNorderSetting);
 static const int NonZeroOrd = 2;
 static const std::array<int, 5> QOrders = {2, 4, 5, 7, 9};
 
+// A simple numerical integration method to compute the average of a function over φ from 0 to 2π
 template<typename Func>
 double Avg(Func f, int samples = 2048) {
     double sum = 0.0;
@@ -430,16 +431,19 @@ double Avg(Func f, int samples = 2048) {
     return sum / static_cast<double>(samples);
 }
 
+// We will use the same numerical integration method to compute the average of φ times a function over φ from 0 to 2π
 using YpFunction = std::function<double(double, double, double, double)>;
 
 struct YpSeries {
     std::array<std::vector<YpFunction>, 3> terms;
 };
 
+// A helper function to compute ε^order, which is used in the expansion of YpSeries terms. This allows us to easily adjust the order of the expansion by changing the value of ε.
 inline double epsilonPow(int order, double epsilon) {
     return std::pow(epsilon, order);
 }
 
+// A helper function to compute the contribution of the YpSeries terms for a given index (idx) and φ. It sums up the contributions from the non-zero order terms, weighted by ε^order.
 double Yexp(const YpSeries& yps, int idx, double pt, double alpha_t, double beta_t, double phi, double epsilon) {
     double sum = 0.0;
     for (int i = NonZeroOrd; i <= Ord - NonZeroOrd; ++i) {
@@ -451,6 +455,7 @@ double Yexp(const YpSeries& yps, int idx, double pt, double alpha_t, double beta
     return sum;
 }
 
+// A helper function to compute the new state XindPhi by adding the contributions from the YpSeries terms to the current state Xvar. This function is used to compute the intermediate state at a given φ, which is then used in the Gseries function to compute the final Q expansion.
 State3 XindPhi(const YpSeries& yps, const State3& Xvar, double pt, double alpha_t, double beta_t, double phi, double epsilon) {
     return {
         Xvar[0] + Yexp(yps, 0, pt, alpha_t, beta_t, phi, epsilon),
@@ -459,6 +464,7 @@ State3 XindPhi(const YpSeries& yps, const State3& Xvar, double pt, double alpha_
     };
 }
 
+// A helper function to create a PhiFunc that computes the contribution of a specific QSeries term for a given index (idx) and order. This function captures the necessary parameters and returns a function that can be evaluated at any φ to get the corresponding Q coefficient value.
 using QFunc = std::function<double(const PNCoeffs&, double, double, double, double, int)>;
 using PhiFunc = std::function<double(double)>;
 
@@ -466,6 +472,7 @@ struct QSeries {
     std::array<std::array<QFunc, 3>, 5> terms;
 };
 
+// A helper function to create a PhiFunc that computes the contribution of a specific QSeries term for a given index (idx) and order. This function captures the necessary parameters and returns a function that can be evaluated at any φ to get the corresponding Q coefficient value.
 PhiFunc makeQCoefPhi(const QSeries& qseries, int idx, int order, const State3& Xvar, double pt, double alpha_t, double beta_t, double epsilon, const PNCoeffs& coeffs, int PNorder) {
     return [=](double phi) {
         double value = 0.0;
@@ -479,6 +486,7 @@ PhiFunc makeQCoefPhi(const QSeries& qseries, int idx, int order, const State3& X
     };
 }
 
+// A helper function to numerically integrate a PhiFunc from 0 to upperPhi using the midpoint rule. This function is used to compute the integral of the Q coefficients over φ, which is necessary for computing the YpSeries terms and the final averaged equations of motion.
 double integratePhi(const PhiFunc& f, double upperPhi, int samples = 2048) {
     if (upperPhi == 0.0) {
         return 0.0;
@@ -492,10 +500,12 @@ double integratePhi(const PhiFunc& f, double upperPhi, int samples = 2048) {
     return sum * h;
 }
 
+// A helper function to compute the average of a PhiFunc over φ from 0 to 2π. This function uses the integratePhi function to compute the integral and then divides by 2π to get the average value.
 double avgPhi(const PhiFunc& f, int samples = 2048) {
     return integratePhi(f, 2.0 * PI, samples) / (2.0 * PI);
 }
 
+// A helper function to compute the average of φ times a PhiFunc over φ from 0 to 2π. This function uses a numerical integration method similar to integratePhi, but it multiplies the function value by φ at each step before summing, and then divides by 2π to get the average value.
 double avgPhiTimes(const PhiFunc& f, int samples = 2048) {
     double sum = 0.0;
     double h = 2.0 * PI / samples;
@@ -506,6 +516,7 @@ double avgPhiTimes(const PhiFunc& f, int samples = 2048) {
     return sum * h / (2.0 * PI);
 }
 
+// A helper function to reduce the order of a QSeries by zeroing out the terms that exceed the specified maxOrder. This function creates a new QSeries where the terms corresponding to orders greater than maxOrder are replaced with functions that return 0, effectively removing their contribution from the calculations.
 QSeries ReduceOrder(const QSeries& qseries, int maxOrder) {
     QSeries reduced;
     for (int k = 0; k < static_cast<int>(QOrders.size()); ++k) {
@@ -522,10 +533,12 @@ QSeries ReduceOrder(const QSeries& qseries, int maxOrder) {
     return reduced;
 }
 
+// A helper function to create a PhiFunc for a specific QSeries term based on the given parameters. This function captures the necessary parameters and returns a function that can be evaluated at any φ to get the corresponding Q coefficient value for the specified index and order.
 PhiFunc GetCoeff(const QSeries& qseries, int idx, int order, const State3& Xvar, double pt, double alpha_t, double beta_t, double epsilon, const PNCoeffs& coeffs, int PNorder) {
     return makeQCoefPhi(qseries, idx, order, Xvar, pt, alpha_t, beta_t, epsilon, coeffs, PNorder);
 }
 
+// A helper function to create a PhiFunc that computes the contribution of a specific QSeries term for a given index (idx) and order. This function captures the necessary parameters and returns a function that can be evaluated at any φ to get the corresponding Y solution value, which is used in the YpSeries terms.
 PhiFunc makeYSolPhi(const PhiFunc& qcoef) {
     double avg_q = avgPhi(qcoef);
     double avg_phi_q = avgPhiTimes(qcoef);
@@ -534,6 +547,7 @@ PhiFunc makeYSolPhi(const PhiFunc& qcoef) {
     };
 }
 
+// A helper function to compute the G series expansion for a given QSeries, PNCoeffs, intermediate state xphi, and other parameters. This function sums up the contributions from the QSeries terms weighted by ε^order to compute the final G series value, which is used in the Q expansion of the equations of motion.
 State3 Gseries(const QSeries& qseries, const PNCoeffs& coeffs, const State3& xphi, double phi, double epsilon, int PNorder) {
     State3 result = {0.0, 0.0, 0.0};
     for (int k = 0; k < static_cast<int>(QOrders.size()); ++k) {
@@ -545,11 +559,13 @@ State3 Gseries(const QSeries& qseries, const PNCoeffs& coeffs, const State3& xph
     return result;
 }
 
+// A helper function to compute the Q expansion for a given QSeries, YpSeries, current state Xvar, and other parameters. This function first computes the intermediate state xphi using the XindPhi function, and then uses the Gseries function to compute the final Q expansion value, which is used in the equations of motion.
 State3 Qexpansion(const QSeries& qseries, const YpSeries& yps, const State3& Xvar, double pt, double alpha_t, double beta_t, double phi, double epsilon, const PNCoeffs& coeffs, int PNorder) {
     State3 xphi = XindPhi(yps, Xvar, pt, alpha_t, beta_t, phi, epsilon);
     return Gseries(qseries, coeffs, xphi, phi, epsilon, PNorder);
 }
 
+// A helper function to build the YpSeries based on the given QSeries, current state Xvar, and other parameters. This function iterates over the indices and orders of the YpSeries terms, creates the corresponding Q coefficient PhiFunc using makeQCoefPhi, and then creates the Y solution PhiFunc using makeYSolPhi. The resulting YpSeries is returned for use in the calculations of the equations of motion.
 YpSeries buildYpSeries(const QSeries& qseries, const State3& Xvar, double pt, double alpha_t, double beta_t, double epsilon, const PNCoeffs& coeffs, int PNorder) {
     YpSeries yps;
     for (int idx = 0; idx < 3; ++idx) {
@@ -564,6 +580,7 @@ YpSeries buildYpSeries(const QSeries& qseries, const State3& Xvar, double pt, do
     return yps;
 }
 
+// A helper function to compute the average of the final right-hand side of the equations of motion over φ from 0 to 2π. This function defines a lambda function rhsFunc that computes the Q expansion for a given φ, and then uses numerical integration to compute the average value of this function over φ, which gives the averaged equations of motion for the orbital elements.
 State3 avgFinalRHS(const QSeries& qseries, const YpSeries& yps, const State3& Xvar, double pt, double alpha_t, double beta_t, double epsilon, const PNCoeffs& coeffs, int PNorder) {
     auto rhsFunc = [&](double phi) {
         State3 qval = Qexpansion(qseries, yps, Xvar, pt, alpha_t, beta_t, phi, epsilon, coeffs, PNorder);
@@ -585,8 +602,10 @@ State3 avgFinalRHS(const QSeries& qseries, const YpSeries& yps, const State3& Xv
     return avgRHS;
 }
 
+// A helper function to generate all combinations of non-negative integers (i, j, k) such that i + j + k <= Max. This function is used to generate the indices for the QSeries and YpSeries terms based on the specified maximum order of the expansion.
 static const int MaxDer = 2;
 
+// Generate all combinations of non-negative integers (i, j, k) such that i + j + k <= Max. This is used to generate the indices for the QSeries and YpSeries terms based on the specified maximum order of the expansion.
 std::vector<std::array<int, 3>> CombinationsIJK(int Max) {
     std::vector<std::array<int, 3>> results;
     results.reserve(Max * (Max + 1) * (Max + 2) / 6);
@@ -603,6 +622,7 @@ std::vector<std::array<int, 3>> CombinationsIJK(int Max) {
     return results;
 }
 
+// Solve the linear system Ax = b using Gaussian elimination with partial pivoting and return the solution vector x
 std::vector<double> solveLinearSystem(std::vector<std::vector<double>> A, std::vector<double> b) {
     int n = static_cast<int>(A.size());
     for (int i = 0; i < n; ++i) {
@@ -638,6 +658,7 @@ std::vector<double> solveLinearSystem(std::vector<std::vector<double>> A, std::v
     return b;
 }
 
+// Fit a polynomial of degree maxOrder to the function f evaluated at small epsilon values and return the coefficients of the fitted polynomial
 std::vector<double> getPolynomialCoefficients(const std::function<double(double)>& f, int maxOrder) {
     int size = maxOrder + 1;
     const double h = 1e-3;
@@ -655,6 +676,7 @@ std::vector<double> getPolynomialCoefficients(const std::function<double(double)
     return solveLinearSystem(std::move(A), std::move(b));
 }
 
+// Evaluate the QLT expansion at a given epsilon by first calculating the YpSeries and then using it to compute the QSeries expansion, which gives the values of dp/dphi, dalpha/dphi, dbeta/dphi at that epsilon
 State3 evaluateQLT(const PNCoeffs& coeffs, const State3& xvar, double phi, double epsilon, int PNorder) {
     double c_val = 1.0 / epsilon;
     double alpha_t = xvar[1];
@@ -667,6 +689,7 @@ State3 evaluateQLT(const PNCoeffs& coeffs, const State3& xvar, double phi, doubl
     };
 }
 
+// Get the coefficient of the QLT expansion for a specific qIndex and order by fitting a polynomial to the QLT values evaluated at small epsilon
 double GetCoeffQLT(const PNCoeffs& coeffs, int qIndex, int order, const State3& xvar, double phi, int PNorder) {
     auto f = [&](double eps) {
         State3 q = evaluateQLT(coeffs, xvar, phi, eps, PNorder);
@@ -679,6 +702,7 @@ double GetCoeffQLT(const PNCoeffs& coeffs, int qIndex, int order, const State3& 
     return coeffsVec[order];
 }
 
+// Partial derivative of g with respect to p, alpha, beta according to the orders specified by dp, da, db
 static double partialDerivative(const std::function<double(const State3&)>& g, const State3& x, int dp, int da, int db) {
     if (dp == 0 && da == 0 && db == 0) {
         return g(x);
@@ -723,12 +747,12 @@ std::array<double, 2> FinalFinalRHS(const State3& preFinalRHS, double alpha_t, d
 
 // Tucker-Will results for evolution
 
-// definition of the rescaling parameter x in Tucker-Willś paper
+// definition of the rescaling parameter x in Tucker-Will paper (eq. 2.17 in the paper)
 double x_TW(const double& p) {
     return c * c * p / (G * M);
 }
 
-// Tucker-Will result of de/dtheta
+// Tucker-Will result of de/dtheta (eq. 2.18a in the paper)
 // term1...2.5PN, term2...3.5PN, term3...4PN, term4...4.5PN
 double de_TW_dtheta(const double& e, const double& x_TW) {
     double term1 = -((304.0 + 121.0 * e * e) / 15.0) * eta * e * std::pow(x_TW, -5.0 / 2.0);
@@ -746,7 +770,7 @@ double de_TW_dtheta(const double& e, const double& x_TW) {
 }
 
 
-// Tucker-Will result of dx/dtheta
+// Tucker-Will result of dx/dtheta (eq. 2.18b in the paper)
 
 double dx_TW_dtheta(const double& e, const double& x_TW) {
     double term1 = - (8.0 / 5.0) * eta * std::pow(x_TW, -3.0 / 2.0) * (8.0 + 7.0 * e * e);
