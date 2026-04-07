@@ -164,6 +164,8 @@ constexpr PNCoeffs buildCoefficients(const bool include_4p5PN = true)
     return K;
 }
 
+// We omit including the 4.5PN gauge coefficients as they dissappear orbit-averaged equations for the orbit elements (as stated in the paper and simultaneously confirmed by Jan Fereisl)
+
 // Defining the PN terms from the previous coefficients (for direct use in the equations of motion)
 // Conservative term (1PN, 2PN, 3PN)
 double A_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val) {
