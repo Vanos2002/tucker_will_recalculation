@@ -55,6 +55,7 @@ struct PNCoeffs {
 
 };
 
+// Defining the PN coefficients (both conservative and dissipative)
 constexpr PNCoeffs buildCoefficients(const bool include_4p5PN = true)
 {
     const double e2 = eta * eta;
@@ -163,8 +164,8 @@ constexpr PNCoeffs buildCoefficients(const bool include_4p5PN = true)
     return K;
 }
 
-// Rewritten Mathematica definitions in C++ format
-// Subscript[A, c][N_] := Sum[a[l, m, n]*(r_dot^2)^m * (v . v)^n * (G*M/Sqrt[r . r])^l * KroneckerDelta[l + m + n, N] / c^(2*N), {l, 0, N}, {m, 0, N}, {n, 0, N}];
+// Defining the PN terms from the previous coefficients (for direct use in the equations of motion)
+// Conservative term (1PN, 2PN, 3PN)
 double A_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val) {
     double sum = 0.0;
     for (int l = 0; l <= N; ++l) {
@@ -178,7 +179,7 @@ double A_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v
     return sum;
 }
 
-// Subscript[B, c][N_] := Sum[b[l, m, n]*(r_dot^2)^m * (v . v)^n * (G*M/Sqrt[r . r])^l * KroneckerDelta[l + m + n, N] / c^(2*N), {l, 0, N}, {m, 0, N}, {n, 0, N}];
+// Conservative term (1PN, 2PN, 3PN)
 double B_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val) {
     double sum = 0.0;
     for (int l = 0; l <= N; ++l) {
@@ -192,8 +193,7 @@ double B_c(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v
     return sum;
 }
 
-// Radiation reaction terms
-// Subscript[A, rr][N_] := Sum[c[l, m, n]*(r_dot^2)^m * (v . v)^n * (G*M/Sqrt[r . r])^l * KroneckerDelta[l + m + n, N] / c^(2*N), {l, 0, N}, {m, 0, N}, {n, 0, N}];
+// Radiation reaction term (2.5PN, 3.5PN, 4.5PN)
 double A_rr(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val) {
     double sum = 0.0;
     for (int l = 0; l <= N; ++l) {
@@ -207,7 +207,7 @@ double A_rr(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& 
     return sum;
 }
 
-// Subscript[B, rr][N_] := Sum[d[l, m, n]*(r_dot^2)^m * (v . v)^n * (G*M/Sqrt[r . r])^l * KroneckerDelta[l + m + n, N] / c^(2*N), {l, 0, N}, {m, 0, N}, {n, 0, N}];
+// Radiation reaction term (2.5PN, 3.5PN, 4.5PN)
 double B_rr(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val) {
     double sum = 0.0;
     for (int l = 0; l <= N; ++l) {
@@ -224,8 +224,7 @@ double B_rr(int N, const PNCoeffs& coeffs,const double& r_dot_sq, const double& 
 // The conservative term at 3PN is dropped out as it is not used in the calculation.
 // For it to show effect in the secular evolution, we would need to calculate up to 3 + 2.5 = 5.5 PN order
 
-// Subscript[A, tot] = Series[Subscript[A, c][1] + Subscript[A, c][2] /. c -> 1/\[Epsilon], {\[Epsilon], 0, PNorder}];
-// In C++, approximating the series expansion by summing the terms
+// Sum of conservative terms (1PN and 2PN) - the 3PN term is not included as it is not used in the calculation
 double A_tot(const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val, int PNorder) {
     double sum = 0.0;
     for (int N = 1; N <= PNorder; ++N) {
@@ -234,7 +233,7 @@ double A_tot(const PNCoeffs& coeffs,const double& r_dot_sq, const double& v_dot_
     return sum;
 }
 
-// Subscript[B, tot] = Series[Subscript[B, c][1] + Subscript[B, c][2] /. c -> 1/\[Epsilon], {\[Epsilon], 0, PNorder}];
+// Sum of conservative terms (1PN and 2PN) - the 3PN term is not included as it is not used in the calculation
 double B_tot(const PNCoeffs& coeffs, const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val, int PNorder) {
     double sum = 0.0;
     for (int N = 1; N <= PNorder; ++N) {
@@ -243,7 +242,7 @@ double B_tot(const PNCoeffs& coeffs, const double& r_dot_sq, const double& v_dot
     return sum;
 }
 
-// Subscript[A, rrtot] = Series[Subscript[A, rr][1] + Subscript[A, rr][2] + Subscript[A, rr][3] /. c -> 1/\[Epsilon], {\[Epsilon], 0, PNorder}];
+// Sum of radiation reaction terms (2.5PN, 3.5PN, 4.5PN)
 double A_rrtot(const PNCoeffs& coeffs, const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val, int PNorder) {
     double sum = 0.0;
     for (int N = 1; N <= PNorder; ++N) {
@@ -252,7 +251,7 @@ double A_rrtot(const PNCoeffs& coeffs, const double& r_dot_sq, const double& v_d
     return sum;
 }
 
-// Subscript[B, rrtot] = Series[Subscript[B, rr][1] + Subscript[B, rr][2] + Subscript[B, rr][3] /. c -> 1/\[Epsilon], {\[Epsilon], 0, PNorder}];
+// Sum of radiation reaction terms (2.5PN, 3.5PN, 4.5PN)
 double B_rrtot(const PNCoeffs& coeffs, const double& r_dot_sq, const double& v_dot_v, const double& GM_over_r, const double& c_val, int PNorder) {
     double sum = 0.0;
     for (int N = 1; N <= PNorder; ++N) {
@@ -261,32 +260,29 @@ double B_rrtot(const PNCoeffs& coeffs, const double& r_dot_sq, const double& v_d
     return sum;
 }
 
-// Orbital elements definitions in C++ format
-// TrigRule = {e Cos[f] -> α Cos[φ] + β Sin[φ], e Sin[f] -> α Sin[φ] - β Cos[φ], e^2 Sin[f]^2 -> α^2 Sin[φ]^2 + β^2 Cos[φ]^2 - α β Sin[2 φ]};
-// NoAbsRule = {Abs -> Identity};
+// Orbital elements definitions and transformations
 
-// NormR = p/(1 + e*Cos[f]) /. TrigRule // Simplify
+// NormR = p/(1 + e*Cos[f])
 double NormR(const double& p,const double& e,const double& alpha, const double& beta, const double& phi) {
     // 1 + e*Cos[f] = 1 + (α Cos[φ] + β Sin[φ])
     double cos_f = alpha * cos(phi) + beta * sin(phi);
     return p / (1.0 + e * cos_f);
 }
 
-// rDot = (Sqrt[G*M*p]*e/p)*Sin[f] /. TrigRule
+// rDot = (Sqrt[G*M*p]*e/p)*Sin[f]
 double rDot(const double& p, const double& e, const double& alpha, const double& beta, const double& phi) {
     // Sin[f] = α Sin[φ] - β Cos[φ]
     double sin_f = alpha * sin(phi) - beta * cos(phi);
     return (sqrt(G * M * p) * e / p) * sin_f;
 }
 
-// NormV = Sqrt[rDot^2 + (Sqrt[G*M*p]/NormR)^2] // Simplify
+// NormV = Sqrt[rDot^2 + (Sqrt[G*M*p]/NormR)^2]
 double NormV(const double& p, const double& e, const double& alpha, const double& beta, const double& phi) {
     double r_dot = rDot(p, e, alpha, beta, phi);
     double norm_r = NormR(p, e, alpha, beta, phi);
     return sqrt(r_dot * r_dot + (sqrt(G * M * p) / norm_r) * (sqrt(G * M * p) / norm_r));
 }
 
-// NormRule = {r . r -> NormR^2, v . v -> NormV^2, r_dot -> rDot, c -> 1/epsilon};
 
 
 // Conservative terms (*Transformation of conservative A and B coefficients*)
@@ -384,13 +380,14 @@ double ScriptCapitalS(const PNCoeffs& coeffs, const double& p, const double& e, 
          + ScriptCapitalScons(coeffs, p, e, alpha, beta, phi, c_val, PNorder);
 }
 
+// dp/dphi = 2 NormR^3 / (G M) * ScriptCapitalS (eq.2.8 in the paper)
 double QLT_p(const PNCoeffs& coeffs, const double& p, const double& e, const double& alpha, const double& beta, const double& phi, const double& c_val, int PNorder) {
     double norm_r = NormR(p, e, alpha, beta, phi);
     double scriptS = ScriptCapitalS(coeffs, p, e, alpha, beta, phi, c_val, PNorder);
     return 2.0 * norm_r * norm_r * norm_r / (G * M) * scriptS;
 }
 
-// QLT[α]
+// dalpha/dphi = NormR^2 / (G M) * [ScriptCapitalR Sin[φ] + ScriptCapitalS (α + Cos[φ]) (1 + NormR/p)] (eq.2.8 in the paper)
 double QLT_alpha(const PNCoeffs& coeffs, const double& p, const double& e, const double& alpha, const double& beta, const double& phi, const double& c_val, int PNorder) {
     double norm_r = NormR(p, e, alpha, beta, phi);
     double scriptR = ScriptCapitalR(coeffs, p, e, alpha, beta, phi, c_val, PNorder);
@@ -402,7 +399,7 @@ double QLT_alpha(const PNCoeffs& coeffs, const double& p, const double& e, const
     );
 }
 
-// QLT[β]
+// dbeta/dphi = NormR^2 / (G M) * [-ScriptCapitalR Cos[φ] + ScriptCapitalS (β + Sin[φ]) (1 + NormR/p)] (eq.2.8 in the paper)
 double QLT_beta(const PNCoeffs& coeffs, const double& p, const double& e, const double& alpha, const double& beta, const double& phi, const double& c_val, int PNorder) {
     double norm_r = NormR(p, e, alpha, beta, phi);
     double scriptR = ScriptCapitalR(coeffs, p, e, alpha, beta, phi, c_val, PNorder);
