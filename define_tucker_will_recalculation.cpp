@@ -6,8 +6,6 @@
 #include <cmath>
 #include <array>
 #include <functional>
-#include "matplotlibcpp.h"
-namespace plt = matplotlibcpp;
 using namespace std;
 
 
