@@ -12,28 +12,28 @@ using namespace std;
 
 
 // Constants (geometrized units)
-inline constexpr double G = 1.0;               // Gravitational constant in geometrized units
-inline constexpr double c = 1.0;               // Speed of light in geometrized units    
+constexpr double G = 1.0;               // Gravitational constant in geometrized units
+constexpr double c = 1.0;               // Speed of light in geometrized units    
 
-inline constexpr double M_sun = 1.98847e30;                // 1 Solar mass in kg
-inline constexpr double G_SI = 6.6743e-11;                 // Gravitational constant in m^3/kg/s^2
-inline constexpr double c_SI = 299792458;       
+constexpr double M_sun = 1.98847e30;                // 1 Solar mass in kg
+constexpr double G_SI = 6.6743e-11;                 // Gravitational constant in m^3/kg/s^2
+constexpr double c_SI = 299792458;       
 
 // Masses
-inline constexpr double m1_solar = 1.0;                        // Mass of black hole 1 in Solar masses
-inline constexpr double m2_solar = 1.0;                        // Mass of black hole 2 in Solar masses
-inline constexpr double M_total_solar = m1_solar + m2_solar;   // Total mass of the system in Solar masses
+constexpr double m1_solar = 1.0;                        // Mass of black hole 1 in Solar masses
+constexpr double m2_solar = 1.0;                        // Mass of black hole 2 in Solar masses
+constexpr double M_total_solar = m1_solar + m2_solar;   // Total mass of the system in Solar masses
 
-inline constexpr double m1 = m1_solar / M_total_solar;                 // Mass of black hole 1
-inline constexpr double m2 = m2_solar / M_total_solar;                 // Mass of black hole 2
-inline constexpr double M = m1 + m2;                                   // Total mass of the system, defined as M=1
-inline constexpr double mu = m1 * m2 / M;                              // Reduced mass in code units   
-inline constexpr double eta = mu / M;                                   // Symmetric mass ratio in code units
+constexpr double m1 = m1_solar / M_total_solar;                 // Mass of black hole 1
+constexpr double m2 = m2_solar / M_total_solar;                 // Mass of black hole 2
+constexpr double M = m1 + m2;                                   // Total mass of the system, defined as M=1
+constexpr double mu = m1 * m2 / M;                              // Reduced mass in code units   
+constexpr double eta = mu / M;                                   // Symmetric mass ratio in code units
 const double Mc = std::pow(m1 * m2, 0.6) * std::pow(M, -0.2);         // Chirp mass in code units
-inline constexpr double M_kg = M_total_solar * M_sun;                  // Total mass in kg
+constexpr double M_kg = M_total_solar * M_sun;                  // Total mass in kg
 
-inline constexpr double time_unit_seconds = G_SI * M_kg / (c_SI * c_SI * c_SI);  // 1 code unit in seconds
-inline constexpr double sep_unit_meters = G_SI * M_kg / (c_SI * c_SI);           // 1 code unit in meters
+constexpr double time_unit_seconds = G_SI * M_kg / (c_SI * c_SI * c_SI);  // 1 code unit in seconds
+constexpr double sep_unit_meters = G_SI * M_kg / (c_SI * c_SI);           // 1 code unit in meters
 
 
 
@@ -42,8 +42,8 @@ const int PNorder = PNorderSetting - 3;
 
 
 // M_PI is not constexpr in <cmath>, so define our own
-inline constexpr double PI  = 3.14159265358979323846;
-inline constexpr double PI2 = PI * PI;
+constexpr double PI  = 3.14159265358979323846;
+constexpr double PI2 = PI * PI;
 
 struct PNCoeffs {
     using Table = std::array<std::array<std::array<double,4>,4>,4>;
@@ -58,7 +58,7 @@ struct PNCoeffs {
 };
 
 // Defining the PN coefficients (both conservative and dissipative)
-constexpr PNCoeffs buildCoefficients(const bool include_4p5PN = true)
+PNCoeffs buildCoefficients(const bool include_4p5PN = true)
 {
     const double e2 = eta * eta;
     const double e3 = e2  * eta;
@@ -441,7 +441,7 @@ struct YpSeries {
 };
 
 // A helper function to compute ε^order, which is used in the expansion of YpSeries terms. This allows us to easily adjust the order of the expansion by changing the value of ε.
-inline double epsilonPow(int order, double epsilon) {
+double epsilonPow(int order, double epsilon) {
     return std::pow(epsilon, order);
 }
 
