@@ -6,8 +6,6 @@
 #include <cmath>
 #include <array>
 #include <functional>
-#include "matplotlibcpp.h"
-namespace plt = matplotlibcpp;
 using namespace std;
 
 
@@ -441,7 +439,7 @@ struct YpSeries {
 };
 
 // A helper function to compute ε^order, which is used in the expansion of YpSeries terms. This allows us to easily adjust the order of the expansion by changing the value of ε.
-double epsilonPow(int order, double epsilon) {
+inline double epsilonPow(int order, double epsilon) {
     return std::pow(epsilon, order);
 }
 
@@ -787,4 +785,9 @@ double dx_TW_dtheta(const double& e, const double& x_TW) {
     double term4_3 = - factor3 * eta * eta * (384.0 + 1025.0 * e * e + 5276.0 * e * e * e * e + 632.0 * e * e * e * e * e * e);
     
     return term1 + term2_1 + term2_2 + term3 + term4_1 + term4_2 + term4_3;
+}
+
+
+int main() {
+    return 0;
 }
