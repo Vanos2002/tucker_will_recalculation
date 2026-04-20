@@ -6,6 +6,7 @@
 #include <cmath>
 #include <array>
 #include <functional>
+#include <iomanip>
 using namespace std;
 
 
@@ -324,7 +325,7 @@ double ScriptCapitalScons(const PNCoeffs& coeffs, const double& p, const double&
     double norm_r = NormR(p, e, alpha, beta, phi);
     double r_dot = rDot(p, e, alpha, beta, phi);
     double btot = Btot(coeffs, p, e, alpha, beta, phi, c_val, PNorder);
-    return G * M / (norm_r * norm_r * norm_r) * (sqrt(G * M * p) / r_dot) * btot;
+    return G * M / (norm_r * norm_r * norm_r) * (sqrt(G * M * p) * r_dot) * btot;
 }
 
 // Radiation Reaction terms (*Transformation of radiation reaction A and B coefficients*)
@@ -766,7 +767,12 @@ double de_TW_dtheta(const double& e, const double& x_TW) {
     double term4_2 = factor3 * eta / 14.0 * (1239608.0 - 3232202.0 * e * e + 898433.0 * e * e * e * e + 13130.0 * e * e * e * e * e * e);
     double term4_3 = - factor3 * eta * eta * (9216.0 + 24353.0 * e * e + 45704.0 * e * e * e * e + 4304.0 * e * e * e * e * e * e);
 
-    return term1 + term2_1 + term2_2 + term3 + term4_1 + term4_2 + term4_3;
+    double de_TW_dtheta_25PN = term1;
+    double de_TW_dtheta_35PN = term2_1 + term2_2;
+    double de_TW_dtheta_4PN = term3;
+    double de_TW_dtheta_45PN = term4_1 + term4_2 + term4_3;
+
+    return de_TW_dtheta_25PN + de_TW_dtheta_35PN + de_TW_dtheta_4PN + de_TW_dtheta_45PN;
 }
 
 
@@ -783,11 +789,174 @@ double dx_TW_dtheta(const double& e, const double& x_TW) {
     double term4_1 = factor3 / 756.0 * (8272600.0 + 777972.0 * e * e - 947991.0 * e * e * e * e - 4743.0 * e * e * e * e * e * e);
     double term4_2 = factor3 * eta / 84.0 * (232328.0 - 1581612.0 * e * e + 598485.0 * e * e * e * e + 6300.0 * e * e * e * e * e * e);
     double term4_3 = - factor3 * eta * eta * (384.0 + 1025.0 * e * e + 5276.0 * e * e * e * e + 632.0 * e * e * e * e * e * e);
+
+    double dx_TW_dtheta_25PN = term1;
+    double dx_TW_dtheta_35PN = term2_1 + term2_2;
+    double dx_TW_dtheta_4PN = term3;
+    double dx_TW_dtheta_45PN = term4_1 + term4_2 + term4_3; 
     
-    return term1 + term2_1 + term2_2 + term3 + term4_1 + term4_2 + term4_3;
+    return dx_TW_dtheta_25PN + dx_TW_dtheta_35PN + dx_TW_dtheta_4PN + dx_TW_dtheta_45PN;
 }
 
 
+
+// JAN FEREISL calculation of the 2.5PN contributions to de/dtheta and dp/dtheta
+double de_TW_2p5(const double& p, const double& e) {
+    double pref = - e * std::pow(G * M * p, 2.5) * eta / (15.0 * p * p * p * p * p);
+    double term = 304.0 + 121.0 * e * e;
+
+    return pref * term;
+}
+
+double dp_TW_2p5(const double& p, const double& e) {
+    double pref = - std::pow(G * M * p, 2.5) * eta / (5.0 * p * p * p * p);
+    double term = 8.0 * (8.0 + 7.0 * e * e);
+
+    return pref * term;
+}
+
+// JAN FEREISL calculation of the 3.5PN contributions to de/dtheta and dp/dtheta
+double de_TW_3p5(const double& p, const double& e) {
+    double pref = - e * G * G * G * M * M * M * eta * std::sqrt(G * M * p) / (840.0 * p * p * p * p);
+    double term = - 8.0 * (18049.0 + 4452.0 * eta) + 4.0 * e * e * (8692.0 + 12803.0 * eta) 
+                  + e * e * e * e * (2251.0 + 15064.0 * eta);
+    
+    return pref * term;
+}
+
+double dp_TW_3p5(const double& p, const double& e) {
+    double pref = - eta * G * G * G * M * M * M * std::sqrt(G * M * p) / (210.0 * p * p * p);
+    double term = - 8.0 * (2759.0 + 252.0 * eta) + 8.0 * e * e * (758.0 + 889.0 * eta) 
+                  + e * e * e * e * (1483.0 + 4424.0 * eta);
+    
+    return pref * term;
+}
+
+
+// JAN FEREISL calculation of the 4PN contributions to de/dtheta and dp/dtheta
+double de_TW_4(const double& p, const double& e) {
+    double pref = - eta * e * PI * G * G * G * G * M * M * M * M / (34560.0 * p * p * p);
+    double term = 4538880.0 + 6876288.0 * e * e + 581208.0 * e * e * e * e + 623.0 * e * e * e * e * e * e;
+
+    return pref * term;
+}
+
+double dp_TW_4(const double& p, const double& e) {
+    double pref = - eta * PI * G * G * G * G * M * M * M * M / (360.0 * p * p * p);
+    double term = 18432.0 + 55872.0 * e * e + 7056.0 * e * e * e * e - 49.0 * e * e * e * e * e * e;
+
+    return pref * term;
+}
+
+// JAN FEREISL calculation of the 4.5PN contributions to de/dtheta and dp/dtheta (eq. 2.19 in the paper)
+double de_TW_4p5(const double& p, const double& e) {
+    double pref = eta * e * std::sqrt(G * M * p) * G * G * G * G * M * M * M * M / (30240.0 * p * p * p * p * p);
+    double term = -16.0 * (3428803.0 + 623439.0 * eta + 56448.0 * eta * eta)
+                  + 3.0 * e * e * e * e * e * e * (-25845.0 - 78380.0 * eta + 361536.0 * eta * eta)
+                  + 12.0 * e * e * (745447.0 + 1064871.0 * eta + 2339925.0 * eta * eta)
+                  + 2.0 * e * e * e * e * (-251155.0 - 9948885.0 * eta + 7220682.0 * eta * eta);
+    return pref * term;
+}
+
+double dp_TW_4p5(const double& p, const double& e) {
+    double pref = eta * std::sqrt(G * M * p) * G * G * G * G * M * M * M * M / (11340.0 * p * p * p * p);
+    double term = -8.0 * (1469531.0 - 101511.0 * eta + 36288.0 * eta * eta)
+                  + 9.0 * e * e * e * e * e * e * (527.0 - 6300.0 * eta + 53088.0 * eta * eta)
+                  + 12.0 * e * e * (743333.0 - 7263.0 * eta + 467775.0 * eta * eta)
+                  + 3.0 * e * e * e * e * (690973.0 - 2644191.0 * eta + 1646568.0 * eta * eta);
+    return pref * term;
+}
+
+std::array<double, 2> average4p5PN(const PNCoeffs& coeffs_full, const PNCoeffs& coeffs_no45, const State3& xvar, int PNorder, int phiSamples = 2048) {
+    double dp_avg = 0.0;
+    double de_avg = 0.0;
+    double p = xvar[0];
+    double alpha = xvar[1];
+    double beta = xvar[2];
+    double e = std::sqrt(alpha * alpha + beta * beta);
+    if (e <= 0.0) {
+        return {0.0, 0.0};
+    }
+
+    for (int i = 0; i < phiSamples; ++i) {
+        double phi = (i + 0.5) * 2.0 * PI / static_cast<double>(phiSamples);
+        double dp_full = QLT_p(coeffs_full, p, e, alpha, beta, phi, 1.0, PNorder);
+        double dp_no45 = QLT_p(coeffs_no45, p, e, alpha, beta, phi, 1.0, PNorder);
+        double dalpha_full = QLT_alpha(coeffs_full, p, e, alpha, beta, phi, 1.0, PNorder);
+        double dalpha_no45 = QLT_alpha(coeffs_no45, p, e, alpha, beta, phi, 1.0, PNorder);
+        double dbeta_full = QLT_beta(coeffs_full, p, e, alpha, beta, phi, 1.0, PNorder);
+        double dbeta_no45 = QLT_beta(coeffs_no45, p, e, alpha, beta, phi, 1.0, PNorder);
+
+        double dp_45 = dp_full - dp_no45;
+        double de_45 = (alpha * (dalpha_full - dalpha_no45) + beta * (dbeta_full - dbeta_no45)) / e;
+        dp_avg += dp_45;
+        de_avg += de_45;
+    }
+
+    double factor = (2.0 * PI / static_cast<double>(phiSamples)) / (2.0 * PI);
+    dp_avg *= factor;
+    de_avg *= factor;
+    return {dp_avg, de_avg};
+}
+
 int main() {
+    std::cout << "";
+    std::cout << "===================================================================";
+    std::cout << "    NUMERICAL 4.5PN COMPARISON FOR SMALL-E BINARY";
+    std::cout << "===================================================================";
+
+    std::cout << std::scientific << std::setprecision(14);
+
+    double p0 = 20.0;
+    double e0 = 0.01;
+    double alpha0 = e0;
+    double beta0 = 0.0;
+    double x0 = x_TW(p0);
+    int PNorder = 3;
+    int phiSamples = 2048;
+
+    std::cout << "Initial conditions:";
+    std::cout << "  eta      = " << eta << "";
+    std::cout << "  p0       = " << p0 << "";
+    std::cout << "  e0       = " << e0 << "";
+    std::cout << "  alpha0   = " << alpha0 << "";
+    std::cout << "  beta0    = " << beta0 << "";
+    std::cout << "  x_TW(p0) = " << x0 << "";
+
+    PNCoeffs coeffs_full = buildCoefficients(true);
+    PNCoeffs coeffs_no45 = buildCoefficients(false);
+    State3 xvar = {p0, alpha0, beta0};
+
+    auto numeric45 = average4p5PN(coeffs_full, coeffs_no45, xvar, PNorder, phiSamples);
+    double dp45_numeric = numeric45[0];
+    double de45_numeric = numeric45[1];
+    double dp45_tw = dp_TW_4p5(p0, e0);
+    double de45_tw = de_TW_4p5(p0, e0);
+
+    std::cout << "NUMERICAL 4.5PN ORBIT-AVERAGED VALUES (full - no45)";
+    std::cout << "────────────────────────────────────────────────────────────────────";
+    std::cout << "  dp/dθ |_4.5PN  = " << dp45_numeric << "";
+    std::cout << "  de/dθ |_4.5PN  = " << de45_numeric << "";
+
+    std::cout << "EXPLICIT TW 4.5PN FORMULAS";
+    std::cout << "────────────────────────────────────────────────────────────────────";
+    std::cout << "  dp/dθ |_4.5PN  = " << dp45_tw << "";
+    std::cout << "  de/dθ |_4.5PN  = " << de45_tw << "";
+
+    std::cout << "RELATIVE DIFFERENCES";
+    std::cout << "────────────────────────────────────────────────────────────────────";
+    auto rel = [&](double a, double b) {
+        if (a == 0.0 && b == 0.0) return 0.0;
+        return std::fabs((a - b) / (0.5 * (std::fabs(a) + std::fabs(b))));
+    };
+    std::cout << "  dp/dθ rel diff = " << rel(dp45_numeric, dp45_tw) << "";
+    std::cout << "  de/dθ rel diff = " << rel(de45_numeric, de45_tw) << "";
+
+    std::cout << "NOTE:";
+    std::cout << "  - Numeric 4.5PN extraction uses the direct full/no45 difference of QLT";
+    std::cout << "    dp/dθ and de/dθ equations, averaged over φ.";
+    std::cout << "  - This compares the ODR 4.5PN contribution against the explicit TW";
+    std::cout << "    4.5PN formulas at the same p0 and e0.";
+
     return 0;
 }
