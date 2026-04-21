@@ -1,7 +1,7 @@
 // pn_comparison.cpp
 //
 // Compares orbit-averaged QLT  {dp/dθ, de/dθ}  against the analytic
-// Tucker-Will (TW, eq. 2.18) and Jan Fereisl (JF, eq. 2.19) formulas
+// Tucker-Will (TW, eq. 2.18a, 2.18b) and Jan Fereisl formulas
 // at every PN sub-order: 2.5PN, 3.5PN, 4PN, 4.5PN.
 //
 // KEY INSIGHT
@@ -41,21 +41,33 @@
 #include <algorithm>
 using namespace std;
 
-constexpr double G   = 1.0;
-constexpr double c   = 1.0;
-constexpr double PI  = 3.14159265358979323846;
-constexpr double PI2 = PI * PI;
+// Constants (geometrized units)
+constexpr double G = 1.0;               // Gravitational constant in geometrized units
+constexpr double c = 1.0;               // Speed of light in geometrized units    
 
-constexpr double m1_solar      = 1.0;
-constexpr double m2_solar      = 1.0;
-constexpr double M_total_solar = m1_solar + m2_solar;
-constexpr double m1  = m1_solar / M_total_solar;
-constexpr double m2  = m2_solar / M_total_solar;
-constexpr double M   = m1 + m2;     // = 1 in code units
-constexpr double mu  = m1*m2/M;
-constexpr double eta = mu/M;        // symmetric mass ratio = 0.25 for equal mass
+constexpr double M_sun = 1.98847e30;                // 1 Solar mass in kg
+constexpr double G_SI = 6.6743e-11;                 // Gravitational constant in m^3/kg/s^2
+constexpr double c_SI = 299792458;                  // Speed of light in m/s
+constexpr double PI = 3.14159265358979323846;       // M_PI is not constexpr in <cmath>, so define our own
+constexpr double PI2 = PI * PI;                     // π²
 
-// ── PN coefficient tables ─────────────────────────────────────────────────────
+// Masses
+constexpr double m1_solar = 1.0;                        // Mass of black hole 1 in Solar masses
+constexpr double m2_solar = 1.0;                        // Mass of black hole 2 in Solar masses
+constexpr double M_total_solar = m1_solar + m2_solar;   // Total mass of the system in Solar masses
+
+constexpr double m1 = m1_solar / M_total_solar;                 // Mass of black hole 1
+constexpr double m2 = m2_solar / M_total_solar;                 // Mass of black hole 2
+constexpr double M = m1 + m2;                                   // Total mass of the system, defined as M=1
+constexpr double mu = m1 * m2 / M;                              // Reduced mass in code units   
+constexpr double eta = mu / M;                                   // Symmetric mass ratio in code units
+const double Mc = std::pow(m1 * m2, 0.6) * std::pow(M, -0.2);         // Chirp mass in code units
+constexpr double M_kg = M_total_solar * M_sun;                  // Total mass in kg
+
+constexpr double time_unit_seconds = G_SI * M_kg / (c_SI * c_SI * c_SI);  // 1 code unit in seconds
+constexpr double sep_unit_meters = G_SI * M_kg / (c_SI * c_SI);           // 1 code unit in meters
+
+// PN coefficient tables
 struct PNCoeffs {
     using Table = std::array<std::array<std::array<double,4>,4>,4>;
     Table a{}, b{}, c{}, d{};
@@ -65,83 +77,118 @@ struct PNCoeffs {
     double D(int l,int m,int n) const { return d[l][m][n]; }
 };
 
-PNCoeffs buildCoefficients(bool include_4p5PN = true)
+// Defining the PN coefficients (both conservative and dissipative)
+PNCoeffs buildCoefficients(const bool include_4p5PN = true)
 {
-    const double e2 = eta*eta, e3 = e2*eta;
+    const double e2 = eta * eta;
+    const double e3 = e2  * eta;
+
     PNCoeffs K{};
-    // 1 PN
-    K.a[1][0][0]= 2.0*(2.0+eta);  K.a[0][1][0]=1.5*eta;  K.a[0][0][1]=-(1.0+3.0*eta);
-    K.b[0][1][0]= 2.0*(2.0-eta);
-    // 2 PN
-    K.a[2][0][0]=-0.75*(12.0+29.0*eta);
-    K.a[0][2][0]=-1.875*eta*(1.0-3.0*eta);
-    K.a[0][0][2]=-eta*(3.0-4.0*eta);
-    K.a[1][1][0]= 2.0+25.0*eta+2.0*e2;
-    K.a[1][0][1]= 0.5*eta*(13.0-4.0*eta);
-    K.a[0][1][1]= 1.5*eta*(3.0-4.0*eta);
-    K.b[0][2][0]=-1.5*eta*(3.0+2.0*eta);
-    K.b[1][1][0]=-0.5*(4.0+41.0*eta+8.0*e2);
-    K.b[0][1][1]= 0.5*eta*(15.0+4.0*eta);
-    // 3 PN
-    K.a[3][0][0]= 16.0+eta*(5596.0-123.0*PI2+1704.0*eta)/48.0;
-    K.a[0][3][0]=(35.0/16.0)*eta*(1.0-5.0*eta+5.0*e2);
-    K.a[0][0][3]=-(1.0/4.0)*eta*(11.0-49.0*eta+52.0*e2);
-    K.a[2][1][0]=-1.0-(22717.0/168.0+615.0/64.0*PI2)*eta-(11.0/8.0)*e2+7.0*e3;
-    K.a[2][0][1]= eta*(20827.0/840.0+123.0/64.0*PI2-e2);
-    K.a[1][2][0]=-0.5*eta*(158.0-69.0*eta-60.0*e2);
-    K.a[1][1][1]= eta*(121.0-16.0*eta-20.0*e2);
-    K.a[1][0][2]=-(1.0/4.0)*eta*(75.0+32.0*eta-40.0*e2);
-    K.a[0][2][1]=-(15.0/8.0)*eta*(4.0-18.0*eta+17.0*e2);
-    K.a[0][1][2]= (3.0/8.0)*eta*(20.0-79.0*eta+60.0*e2);
-    K.b[0][3][0]=(15.0/8.0)*eta*(3.0-8.0*eta-2.0*e2);
-    K.b[2][1][0]= 4.0+(5849.0/840.0+123.0/32.0*PI2)*eta-25.0*e2-8.0*e3;
-    K.b[1][2][0]=-(1.0/6.0)*eta*(329.0+177.0*eta+108.0*e2);
-    K.b[1][1][1]= eta*(15.0+27.0*eta+10.0*e2);
-    K.b[0][2][1]=-(3.0/4.0)*eta*(16.0-37.0*eta-16.0*e2);
-    K.b[0][1][2]= (1.0/8.0)*eta*(65.0-152.0*eta-48.0*e2);
-    // 2.5 PN radiation
-    K.c[1][0][0]= 17.0/3.0;  K.c[0][0][1]= 3.0;
-    K.d[1][0][0]=-3.0;        K.d[0][0][1]=-1.0;
-    // 3.5 PN radiation
-    K.c[2][0][0]=-(23.0/14.0)*(43.0+14.0*eta);
-    K.c[0][2][0]=-70.0;
-    K.c[0][0][2]=-(3.0/28.0)*(61.0+70.0*eta);
-    K.c[1][1][0]=-(1.0/4.0)*(147.0+188.0*eta);
-    K.c[1][0][1]=-(1.0/42.0)*(519.0-1267.0*eta);
-    K.c[0][1][1]= (15.0/4.0)*(19.0+2.0*eta);
-    K.d[2][0][0]= (1.0/42.0)*(1325.0+546.0*eta);
-    K.d[0][2][0]= 75.0;
-    K.d[0][0][2]= (1.0/28.0)*(313.0+42.0*eta);
-    K.d[1][1][0]= (1.0/12.0)*(205.0+424.0*eta);
-    K.d[1][0][1]=-(1.0/42.0)*(205.0+777.0*eta);
-    K.d[0][1][1]=-(3.0/4.0)*(113.0+2.0*eta);
-    // 4.5 PN radiation
+
+    // ── 1 PN ──────────────────────────────────────────────────────────────
+    K.a[1][0][0] =  2.0*(2.0 + eta);
+    K.a[0][1][0] =  1.5*eta;
+    K.a[0][0][1] = -(1.0 + 3.0*eta);
+
+    K.b[1][0][0] = 0.0;
+    K.b[0][1][0] =  2.0*(2.0 - eta);
+    K.b[0][0][1] =  0.0;
+
+    // ── 2 PN ──────────────────────────────────────────────────────────────
+    K.a[2][0][0] = -0.75*(12.0 + 29.0*eta);
+    K.a[0][2][0] = -1.875*eta*(1.0 - 3.0*eta);
+    K.a[0][0][2] = -eta*(3.0 - 4.0*eta);
+    K.a[1][1][0] =  2.0 + 25.0*eta + 2.0*e2;
+    K.a[1][0][1] =  0.5*eta*(13.0 - 4.0*eta);
+    K.a[0][1][1] =  1.5*eta*(3.0 - 4.0*eta);
+
+    K.b[2][0][0] = 0.0;
+    K.b[0][2][0] = -1.5*eta*(3.0 + 2.0*eta);
+    K.b[0][0][2] = 0.0;
+    K.b[1][1][0] = -0.5*(4.0 + 41.0*eta + 8.0*e2);
+    K.b[1][0][1] = 0.0;
+    K.b[0][1][1] =  0.5*eta*(15.0 + 4.0*eta);
+
+    // ── 3 PN ──────────────────────────────────────────────────────────────
+    K.a[3][0][0] =  16.0 + eta*(5596.0 - 123.0*PI2 + 1704.0*eta)/48.0;
+    K.a[0][3][0] =  (35.0/16.0)*eta*(1.0 - 5.0*eta + 5.0*e2);
+    K.a[0][0][3] = -(1.0/4.0)*eta*(11.0 - 49.0*eta + 52.0*e2);
+    K.a[2][1][0] = -1.0 - (22717.0/168.0 + 615.0/64.0*PI2)*eta
+                        - (11.0/8.0)*e2 + 7.0*e3;
+    K.a[2][0][1] =  eta*(20827.0/840.0 + 123.0/64.0*PI2 - e2);
+    K.a[1][2][0] = -0.5*eta*(158.0 - 69.0*eta - 60.0*e2);
+    K.a[1][1][1] =  eta*(121.0 - 16.0*eta - 20.0*e2);
+    K.a[1][0][2] = -(1.0/4.0)*eta*(75.0 + 32.0*eta - 40.0*e2);
+    K.a[0][2][1] = -(15.0/8.0)*eta*(4.0 - 18.0*eta + 17.0*e2);
+    K.a[0][1][2] =  (3.0/8.0)*eta*(20.0 - 79.0*eta + 60.0*e2);
+
+    K.b[3][0][0] = 0.0;
+    K.b[0][3][0] =  (15.0/8.0)*eta*(3.0 - 8.0*eta - 2.0*e2);
+    K.b[0][0][3] = 0.0;
+    K.b[2][1][0] =  4.0 + (5849.0/840.0 + 123.0/32.0*PI2)*eta
+                        - 25.0*e2 - 8.0*e3;
+    K.b[2][0][1] = 0.0;
+    K.b[1][2][0] = -(1.0/6.0)*eta*(329.0 + 177.0*eta + 108.0*e2);
+    K.b[1][1][1] =  eta*(15.0 + 27.0*eta + 10.0*e2);
+    K.b[1][0][2] = 0.0;
+    K.b[0][2][1] = -(3.0/4.0)*eta*(16.0 - 37.0*eta - 16.0*e2);
+    K.b[0][1][2] =  (1.0/8.0)*eta*(65.0 - 152.0*eta - 48.0*e2);
+
+    // ── 2.5 PN  (radiation reaction) ──────────────────────────────────────
+    K.c[1][0][0] =  17.0/3.0;
+    K.c[0][1][0] =  0.0;
+    K.c[0][0][1] =  3.0;
+
+    K.d[1][0][0] = -3.0;
+    K.d[0][1][0] =  0.0;
+    K.d[0][0][1] = -1.0;
+
+    // ── 3.5 PN  (radiation reaction) ──────────────────────────────────────
+    K.c[2][0][0] = -(23.0/14.0)*(43.0 + 14.0*eta);
+    K.c[0][2][0] = -70.0;
+    K.c[0][0][2] = -(3.0/28.0)*(61.0 + 70.0*eta);
+    K.c[1][1][0] = -(1.0/4.0)*(147.0 + 188.0*eta);
+    K.c[1][0][1] = -(1.0/42.0)*(519.0 - 1267.0*eta);
+    K.c[0][1][1] =  (15.0/4.0)*(19.0 + 2.0*eta);
+
+    K.d[2][0][0] =  (1.0/42.0)*(1325.0 + 546.0*eta);
+    K.d[0][2][0] =  75.0;
+    K.d[0][0][2] =  (1.0/28.0)*(313.0 + 42.0*eta);
+    K.d[1][1][0] =  (1.0/12.0)*(205.0 + 424.0*eta);
+    K.d[1][0][1] = -(1.0/42.0)*(205.0 + 777.0*eta);
+    K.d[0][1][1] = -(3.0/4.0)*(113.0 + 2.0*eta);
+
+    // ── 4.5 PN  (radiation reaction — disputed term) ───────────────────────
     if (include_4p5PN) {
-        K.c[3][0][0]= (1.0/756.0)*(289079.0+284127.0*eta+22632.0*e2);
-        K.c[0][0][3]= (1.0/168.0)*(779.0+604.0*eta-7090.0*e2);
-        K.c[2][1][0]= (1.0/756.0)*(250221.0-6032.0*eta+74134.0*e2);
-        K.c[2][0][1]=-(1.0/252.0)*(20916.0-24324.0*eta+23483.0*e2);
-        K.c[1][2][0]= (1.0/252.0)*(108322.0-43996.0*eta+12839.0*e2);
-        K.c[1][1][1]=-(1.0/504.0)*(218401.0-160227.0*eta+95987.0*e2);
-        K.c[1][0][2]= (1.0/504.0)*(40758.0-88311.0*eta+43474.0*e2);
-        K.c[0][2][1]= (5.0/18.0)*(87.0-215.0*eta-97.0*e2);
-        K.c[0][1][2]=-(1.0/84.0)*(1205.0-260.0*eta-8785.0*e2);
-        K.d[3][0][0]=-(1.0/2268.0)*(395929.0+398700.0*eta+87048.0*e2);
-        K.d[0][3][0]= (5.0/18.0)*(291.0-919.0*eta+97.0*e2);
-        K.d[0][0][3]=-(1.0/56.0)*(834.0-1956.0*eta-1743.0*e2);
-        K.d[2][1][0]=-(1.0/252.0)*(37992.0+62832.0*eta+9649.0*e2);
-        K.d[2][0][1]= (1.0/252.0)*(26703.0+21304.0*eta+28486.0*e2);
-        K.d[1][2][0]=-(1.0/252.0)*(99499.0+24002.0*eta+33443.0*e2);
-        K.d[1][1][1]= (1.0/504.0)*(200244.0+65460.0*eta+83501.0*e2);
-        K.d[1][0][2]=-(1.0/504.0)*(16731.0+24785.0*eta+41471.0*e2);
-        K.d[0][2][1]=-(5.0/168.0)*(6889.0-21631.0*eta+2380.0*e2);
-        K.d[0][1][2]= (1.0/168.0)*(21280.0-60733.0*eta-11999.0*e2);
+        K.c[3][0][0] =  (1.0/756.0)*(289079.0 + 284127.0*eta + 22632.0*e2);
+        K.c[0][3][0] =  0.0;
+        K.c[0][0][3] =  (1.0/168.0)*(779.0 + 604.0*eta - 7090.0*e2);
+        K.c[2][1][0] =  (1.0/756.0)*(250221.0 - 6032.0*eta + 74134.0*e2);
+        K.c[2][0][1] = -(1.0/252.0)*(20916.0 - 24324.0*eta + 23483.0*e2);
+        K.c[1][2][0] =  (1.0/252.0)*(108322.0 - 43996.0*eta + 12839.0*e2);
+        K.c[1][1][1] = -(1.0/504.0)*(218401.0 - 160227.0*eta + 95987.0*e2);
+        K.c[1][0][2] =  (1.0/504.0)*(40758.0 - 88311.0*eta + 43474.0*e2);
+        K.c[0][2][1] =  (5.0/18.0)*(87.0 - 215.0*eta - 97.0*e2);
+        K.c[0][1][2] = -(1.0/84.0)*(1205.0 - 260.0*eta - 8785.0*e2);
+
+        K.d[3][0][0] = -(1.0/2268.0)*(395929.0 + 398700.0*eta + 87048.0*e2);
+        K.d[0][3][0] =  (5.0/18.0)*(291.0 - 919.0*eta + 97.0*e2);
+        K.d[0][0][3] = -(1.0/56.0)*(834.0 - 1956.0*eta - 1743.0*e2);
+        K.d[2][1][0] = -(1.0/252.0)*(37992.0 + 62832.0*eta + 9649.0*e2);
+        K.d[2][0][1] =  (1.0/252.0)*(26703.0 + 21304.0*eta + 28486.0*e2);
+        K.d[1][2][0] = -(1.0/252.0)*(99499.0 + 24002.0*eta + 33443.0*e2);
+        K.d[1][1][1] =  (1.0/504.0)*(200244.0 + 65460.0*eta + 83501.0*e2);
+        K.d[1][0][2] = -(1.0/504.0)*(16731.0 + 24785.0*eta + 41471.0*e2);
+        K.d[0][2][1] = -(5.0/168.0)*(6889.0 - 21631.0*eta + 2380.0*e2);
+        K.d[0][1][2] =  (1.0/168.0)*(21280.0 - 60733.0*eta - 11999.0*e2);
     }
+
     return K;
 }
 
-// ── Orbital kinematics ────────────────────────────────────────────────────────
-// e = sqrt(alpha^2 + beta^2) is always computed fresh from (alpha, beta)
+
+// Orbital kinematics
+// e = sqrt(alpha^2 + beta^2) is computed from (alpha, beta)
 static double normR(double p, double e, double alpha, double beta, double phi){
     return p / (1.0 + e*(alpha*cos(phi) + beta*sin(phi)));
 }
@@ -154,7 +201,7 @@ static double normV2(double p, double e, double alpha, double beta, double phi){
     return rd*rd + G*M*p/(r*r);
 }
 
-// ── Monomial sum over one coefficient table ───────────────────────────────────
+// Monomial sum over one coefficient table
 static double sumTable(const PNCoeffs::Table& tab, int N,
                        double rd2, double v2, double gmr, double c_val)
 {
@@ -167,7 +214,7 @@ static double sumTable(const PNCoeffs::Table& tab, int N,
     return s;
 }
 
-// ── QLT equations of motion ───────────────────────────────────────────────────
+// QLT equations of motion
 struct QLTrhs { double dp, dalpha, dbeta; };
 
 QLTrhs computeQLT(const PNCoeffs& K, double p,
@@ -206,7 +253,7 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
     return {dp_dphi, dalpha, dbeta};
 }
 
-// ── Orbit average ─────────────────────────────────────────────────────────────
+// Orbit average
 struct AvgResult { double dp, de; };
 
 AvgResult orbitAverage(const PNCoeffs& K, double p,
@@ -235,7 +282,7 @@ AvgResult orbitAverage(const PNCoeffs& K, double p,
     return {avg_dp, de};
 }
 
-// ── Analytic formulas (TW eq.2.18 = JF eq.2.19 — same physics) ───────────────
+// ── Analytic formulas (TW eq.2.18a, 2.18b — same physics) ───────────────
 // In code units G=M=c=1: x = c²p/(GM) = p, so dx/dθ = dp/dθ exactly.
 
 double dp_25_TW(double p,double e){
@@ -280,7 +327,7 @@ double de_45_TW(double p,double e){
                  +3.0*e6*(-25845.0-78380.0*eta+361536.0*eta*eta));
 }
 
-// JF formulas (eq. 2.19 in paper) — different factoring, same algebra
+// 
 double dp_25_JF(double p,double e){ return dp_25_TW(p,e); }
 double dp_35_JF(double p,double e){ return dp_35_TW(p,e); }
 double dp_4_JF (double p,double e){ return dp_4_TW (p,e); }
@@ -359,6 +406,7 @@ int main()
     const int WNUM = 28;   // scientific numbers
     const int WRD  = 20;   // relative diff
 
+    // Test parameters
     const double p0     = 20.0;
     const double e0     = 0.01;
     const double alpha0 = e0;         // e = sqrt(alpha0^2 + beta0^2) = e0 exactly
