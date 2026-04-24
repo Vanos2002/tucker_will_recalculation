@@ -1,4 +1,3 @@
-// pn_comparison.cpp
 //
 // Compares orbit-averaged QLT  {dp/dθ, de/dθ}  against the analytic
 // Tucker-Will (TW, eq. 2.18a, 2.18b) and Jan Fereisl formulas
