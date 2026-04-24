@@ -835,7 +835,7 @@ double dp_TW_3p5(const double& p, const double& e) {
 
 // JAN FEREISL calculation of the 4PN contributions to de/dtheta and dp/dtheta
 double de_TW_4(const double& p, const double& e) {
-    double pref = - eta * e * PI * G * G * G * G * M * M * M * M / (34560.0 * p * p * p);
+    double pref = - eta * e * PI * G * G * G * G * M * M * M * M / (34560.0 * p * p * p * p);
     double term = 4538880.0 + 6876288.0 * e * e + 581208.0 * e * e * e * e + 623.0 * e * e * e * e * e * e;
 
     return pref * term;
