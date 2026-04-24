@@ -798,17 +798,23 @@ double dx_TW_dtheta(const double& e, const double& x_TW) {
     return dx_TW_dtheta_25PN + dx_TW_dtheta_35PN + dx_TW_dtheta_4PN + dx_TW_dtheta_45PN;
 }
 
+// Tucker-Will result of dp/dtheta (eq. 2.18b in the paper multiplied by G*M/c^2 to convert from dx/dtheta to dp/dtheta)
+double dp_TW_dtheta(const double& e, const double& x_TW) {
+    double dx_dtheta = dx_TW_dtheta(e, x_TW);
+    return (G * M / (c * c)) * dx_dtheta;
+}
+
 
 
 // JAN FEREISL calculation of the 2.5PN contributions to de/dtheta and dp/dtheta
-double de_TW_2p5(const double& p, const double& e) {
+double de_JF_2p5(const double& p, const double& e) {
     double pref = - e * std::pow(G * M * p, 2.5) * eta / (15.0 * p * p * p * p * p);
     double term = 304.0 + 121.0 * e * e;
 
     return pref * term;
 }
 
-double dp_TW_2p5(const double& p, const double& e) {
+double dp_JF_2p5(const double& p, const double& e) {
     double pref = - std::pow(G * M * p, 2.5) * eta / (5.0 * p * p * p * p);
     double term = 8.0 * (8.0 + 7.0 * e * e);
 
@@ -816,7 +822,7 @@ double dp_TW_2p5(const double& p, const double& e) {
 }
 
 // JAN FEREISL calculation of the 3.5PN contributions to de/dtheta and dp/dtheta
-double de_TW_3p5(const double& p, const double& e) {
+double de_JF_3p5(const double& p, const double& e) {
     double pref = - e * G * G * G * M * M * M * eta * std::sqrt(G * M * p) / (840.0 * p * p * p * p);
     double term = - 8.0 * (18049.0 + 4452.0 * eta) + 4.0 * e * e * (8692.0 + 12803.0 * eta) 
                   + e * e * e * e * (2251.0 + 15064.0 * eta);
@@ -824,7 +830,7 @@ double de_TW_3p5(const double& p, const double& e) {
     return pref * term;
 }
 
-double dp_TW_3p5(const double& p, const double& e) {
+double dp_JF_3p5(const double& p, const double& e) {
     double pref = - eta * G * G * G * M * M * M * std::sqrt(G * M * p) / (210.0 * p * p * p);
     double term = - 8.0 * (2759.0 + 252.0 * eta) + 8.0 * e * e * (758.0 + 889.0 * eta) 
                   + e * e * e * e * (1483.0 + 4424.0 * eta);
@@ -834,14 +840,14 @@ double dp_TW_3p5(const double& p, const double& e) {
 
 
 // JAN FEREISL calculation of the 4PN contributions to de/dtheta and dp/dtheta
-double de_TW_4(const double& p, const double& e) {
+double de_JF_4(const double& p, const double& e) {
     double pref = - eta * e * PI * G * G * G * G * M * M * M * M / (34560.0 * p * p * p * p);
     double term = 4538880.0 + 6876288.0 * e * e + 581208.0 * e * e * e * e + 623.0 * e * e * e * e * e * e;
 
     return pref * term;
 }
 
-double dp_TW_4(const double& p, const double& e) {
+double dp_JF_4(const double& p, const double& e) {
     double pref = - eta * PI * G * G * G * G * M * M * M * M / (360.0 * p * p * p);
     double term = 18432.0 + 55872.0 * e * e + 7056.0 * e * e * e * e - 49.0 * e * e * e * e * e * e;
 
@@ -849,7 +855,7 @@ double dp_TW_4(const double& p, const double& e) {
 }
 
 // JAN FEREISL calculation of the 4.5PN contributions to de/dtheta and dp/dtheta (eq. 2.19 in the paper)
-double de_TW_4p5(const double& p, const double& e) {
+double de_JF_4p5(const double& p, const double& e) {
     double pref = eta * e * std::sqrt(G * M * p) * G * G * G * G * M * M * M * M / (30240.0 * p * p * p * p * p);
     double term = -16.0 * (3428803.0 + 623439.0 * eta + 56448.0 * eta * eta)
                   + 3.0 * e * e * e * e * e * e * (-25845.0 - 78380.0 * eta + 361536.0 * eta * eta)
@@ -858,7 +864,7 @@ double de_TW_4p5(const double& p, const double& e) {
     return pref * term;
 }
 
-double dp_TW_4p5(const double& p, const double& e) {
+double dp_JF_4p5(const double& p, const double& e) {
     double pref = eta * std::sqrt(G * M * p) * G * G * G * G * M * M * M * M / (11340.0 * p * p * p * p);
     double term = -8.0 * (1469531.0 - 101511.0 * eta + 36288.0 * eta * eta)
                   + 9.0 * e * e * e * e * e * e * (527.0 - 6300.0 * eta + 53088.0 * eta * eta)
@@ -930,18 +936,18 @@ int main() {
     auto numeric45 = average4p5PN(coeffs_full, coeffs_no45, xvar, PNorder, phiSamples);
     double dp45_numeric = numeric45[0];
     double de45_numeric = numeric45[1];
-    double dp45_tw = dp_TW_4p5(p0, e0);
-    double de45_tw = de_TW_4p5(p0, e0);
+    double dp45_jf = dp_JF_4p5(p0, e0);
+    double de45_jf = de_JF_4p5(p0, e0);
 
     std::cout << "NUMERICAL 4.5PN ORBIT-AVERAGED VALUES (full - no45)";
     std::cout << "────────────────────────────────────────────────────────────────────";
     std::cout << "  dp/dθ |_4.5PN  = " << dp45_numeric << "";
     std::cout << "  de/dθ |_4.5PN  = " << de45_numeric << "";
 
-    std::cout << "EXPLICIT TW 4.5PN FORMULAS";
+    std::cout << "EXPLICIT JF 4.5PN FORMULAS";
     std::cout << "────────────────────────────────────────────────────────────────────";
-    std::cout << "  dp/dθ |_4.5PN  = " << dp45_tw << "";
-    std::cout << "  de/dθ |_4.5PN  = " << de45_tw << "";
+    std::cout << "  dp/dθ |_4.5PN  = " << dp45_jf << "";
+    std::cout << "  de/dθ |_4.5PN  = " << de45_jf << "";
 
     std::cout << "RELATIVE DIFFERENCES";
     std::cout << "────────────────────────────────────────────────────────────────────";
@@ -949,13 +955,13 @@ int main() {
         if (a == 0.0 && b == 0.0) return 0.0;
         return std::fabs((a - b) / (0.5 * (std::fabs(a) + std::fabs(b))));
     };
-    std::cout << "  dp/dθ rel diff = " << rel(dp45_numeric, dp45_tw) << "";
-    std::cout << "  de/dθ rel diff = " << rel(de45_numeric, de45_tw) << "";
+    std::cout << "  dp/dθ rel diff = " << rel(dp45_numeric, dp45_jf) << "";
+    std::cout << "  de/dθ rel diff = " << rel(de45_numeric, de45_jf) << "";
 
     std::cout << "NOTE:";
     std::cout << "  - Numeric 4.5PN extraction uses the direct full/no45 difference of QLT";
     std::cout << "    dp/dθ and de/dθ equations, averaged over φ.";
-    std::cout << "  - This compares the ODR 4.5PN contribution against the explicit TW";
+    std::cout << "  - This compares the ODR 4.5PN contribution against the explicit JF";
     std::cout << "    4.5PN formulas at the same p0 and e0.";
 
     return 0;
