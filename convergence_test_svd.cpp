@@ -371,7 +371,9 @@ PNConsistencyReport checkPNConsistency(
     double total_inconsistency = 0.0;
     int count = 0;
     
-    for(const auto& [order, pair] : pn_pairs){
+    for(const auto& item : pn_pairs){
+        const auto& order = item.first;
+        const auto& pair = item.second;
         const auto& dp_res = pair.first;
         const auto& de_res = pair.second;
         
@@ -664,7 +666,7 @@ LSFitResult solveLSSVD(vector<vector<double>> A, vector<double> b){
     }
     residual_norm = sqrt(residual_norm);
     
-    // Estimate uncertainty from residuals and A matrix
+    // Estimate uncertainty from residuals and A matrix (if m > n, then sigma^2 ~ ||r||^2 / (m-n), else sigma^2 = 1.0)
     double sigma_sq = (m > n) ? (residual_norm*residual_norm / (m - n)) : 1.0;
     
     // Estimate condition number: cond(A) ~ sigma_max / sigma_min
@@ -746,7 +748,7 @@ int main()
     // Test parameters
     const double p0     = 20.0;
     const double e0     = 0.01;
-    const double alpha0 = e0;         // e = sqrt(alpha0^2 + beta0^2) = e0 exactly
+    const double alpha0 = e0;
     const double beta0  = 0.0;
     const int    PNord  = 3;
     const int    Nsamp  = 4096;
@@ -825,7 +827,7 @@ int main()
     cout << "  • Fit range: eps in [0.006, 0.09], log-spaced for robustness\n\n";
 
     // Fit basis powers: 5,6,7,8,9,10  (6 terms, 6 unknowns)
-    vector<int> pows = {5,6,7,8,9,10};
+    vector<int> pows = {5,7,8,9};
     double elo=0.006, ehi=0.09;
 
     // Use adaptive averaging for better accuracy
