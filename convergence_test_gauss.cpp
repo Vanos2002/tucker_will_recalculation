@@ -571,8 +571,8 @@ int main()
     cout << " Fit this polynomial at small eps; the extracted A_N should equal\n";
     cout << " the TW/JF analytic value.  Fit range: eps in [0.006, 0.09]\n\n";
 
-    // Fit basis powers: 5,6,7,8,9,10  (6 terms, 6 unknowns)
-    vector<int> pows = {5,6,7,8,9,10};
+    // Fit basis powers: 5,7,8,9
+    vector<int> pows = {5,7,8,9};
     double elo=0.006, ehi=0.09;
 
     auto QLT_dp_f = [&](double eps)->double{
