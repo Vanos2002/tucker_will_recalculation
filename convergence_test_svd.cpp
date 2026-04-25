@@ -247,7 +247,7 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
 
     double ScR = G*M/(r*r)*(Atot+Btot) + rr_R_pre*(Crr+Drr);
     double ScS = G*M/(r*r*r)*sqrt(G*M*p)*rd*Btot + rr_S_pre*Drr;
-
+    // QLT equations of motion (eq. 2.8 in the paper)
     double dp_dphi = 2.0*r*r*r/(G*M)*ScS;
     double dalpha  = r*r/(G*M)*(  ScR*sin(phi) + ScS*(alpha+cos(phi))*(1.0+r/p) - ScS*alpha );
     double dbeta   = r*r/(G*M)*( -ScR*cos(phi) + ScS*(beta +sin(phi))*(1.0+r/p) - ScS*beta  );
@@ -258,6 +258,8 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
 // Orbit average (basic version for reference calculations)
 struct AvgResult { double dp, de; };
 
+/* The convergence test (lines 308-334) explicitly validates that 4096 is sufficient by checking
+ the convergence order is 2.0 and using Richardson extrapolation to boost accuracy further*/ 
 AvgResult orbitAverage(const PNCoeffs& K, double p,
                        double alpha, double beta,
                        double c_val, int PNorder, int Nsamp=4096)
@@ -292,7 +294,7 @@ struct AvgResultWithConvergence {
     bool converged;         // Did convergence test pass?
     double convergence_rate; // Observed convergence order
 };
-
+// This function computes the orbit average at multiple sample counts and uses Richardson extrapolation
 AvgResultWithConvergence orbitAverageAdaptive(
     const PNCoeffs& K, double p,
     double alpha, double beta,
@@ -304,7 +306,7 @@ AvgResultWithConvergence orbitAverageAdaptive(
     auto compute = [&](int N) -> AvgResult {
         return orbitAverage(K, p, alpha, beta, c_val, PNorder, N);
     };
-    
+    // Compute at three levels for Richardson extrapolation and convergence estimation
     auto res1 = compute(Nsamp_base);
     auto res2 = compute(2 * Nsamp_base);
     auto res4 = compute(4 * Nsamp_base);
@@ -340,7 +342,7 @@ struct FitCoeffResult {
     double uncertainty;     // 1-sigma uncertainty
     double residual_norm;   // Quality of fit
     double condition_number; // Matrix conditioning
-    int pn_order;           // Which PN order (5, 7, 8, 9 etc)
+    int pn_order;           // PN order (5, 7, 8, 9 for 2.5PN, 3.5PN, 4PN, 4.5PN)
 };
 
 // PN consistency checker: validates that truncation orders match
@@ -350,7 +352,7 @@ struct PNConsistencyReport {
     int recommended_truncation;
     double consistency_score; // 0=poor, 1=perfect
 };
-
+// This function checks the consistency of the fitted PN coefficients against expected values and uncertainties
 PNConsistencyReport checkPNConsistency(
     const vector<FitCoeffResult>& dp_results,
     const vector<FitCoeffResult>& de_results,
@@ -370,7 +372,7 @@ PNConsistencyReport checkPNConsistency(
     
     double total_inconsistency = 0.0;
     int count = 0;
-    
+    // Check each PN order for consistency
     for(const auto& item : pn_pairs){
         const auto& order = item.first;
         const auto& pair = item.second;
@@ -411,7 +413,7 @@ PNConsistencyReport checkPNConsistency(
 }
 
 // Tucker-Will results for evolution
-
+// Note that the constexpr variable c is set to 1.0 in code units, so the rescaling parameter x_TW is effectively p/(G*M) in code units, but we keep the full expression for clarity and consistency with the paper's definitions.
 // definition of the rescaling parameter x in Tucker-Will paper (eq. 2.17 in the paper)
 double x_TW(const double& p) {
     return c * c * p / (G * M);
@@ -584,7 +586,7 @@ struct LSFitResult {
     vector<double> uncertainties; // 1-sigma uncertainties in each coeff
 };
 
-// Compact SVD-based solver (Golub-Kahan algorithm via power iteration)
+// Compact SVD-based solver (Golub-Kahan algorithm via power iteration) - via Numerical Recipes style implementation, with Tikhonov regularization for stability
 LSFitResult solveLSSVD(vector<vector<double>> A, vector<double> b){
     int m = A.size();      // Number of equations (samples)
     int n = A[0].size();   // Number of unknowns (PN orders)
@@ -696,7 +698,7 @@ LSFitResult solveLSSVD(vector<vector<double>> A, vector<double> b){
     
     return {coeffs, residual_norm, cond_number, rank, uncertainties};
 }
-
+// Extract a specific PN coefficient with uncertainty from the fitted results
 FitCoeffResult extractCoeffWithUncertainty(
     const function<double(double)>& f,
     const vector<int>& powers, int targetPow,
@@ -731,7 +733,7 @@ FitCoeffResult extractCoeffWithUncertainty(
     return {coeff_val, coeff_unc, result.residual_norm, 
             result.condition_number, targetPow};
 }
-
+// Compute relative difference between two numbers
 static double relDiff(double a, double b){
     double d=0.5*(fabs(a)+fabs(b));
     return d<1e-30?0.0:fabs(a-b)/d;
@@ -901,7 +903,7 @@ int main()
     double total_tw_dp=0, total_jf_dp=0;
     double total_tw_de=0, total_jf_de=0;
     int wins_tw=0, wins_jf=0;
-
+    // Lambda to print a row and accumulate stats
     auto crow_unc = [&](const string& ord, const FitCoeffResult& qlt, 
                         double tw, double jf,
                         double& tot_tw, double& tot_jf) {
