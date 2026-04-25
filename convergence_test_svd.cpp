@@ -828,7 +828,7 @@ int main()
     cout << "  • Richardson extrapolation for averaging convergence\n";
     cout << "  • Fit range: eps in [0.006, 0.09], log-spaced for robustness\n\n";
 
-    // Fit basis powers: 5,6,7,8,9,10  (6 terms, 6 unknowns)
+    // Fit basis powers: 5,7,8,9
     vector<int> pows = {5,7,8,9};
     double elo=0.006, ehi=0.09;
 
