@@ -575,8 +575,7 @@ double dp_JF(const double& p, const double& e) {
 // Compare dp_TW_dtheta and de_JF
 // Compare dp_TW_dtheta and dp_JF
 
-// ── Research-grade fitting via SVD with uncertainty estimation ────────────────
-// SVD-based solver for least-squares problems: A*x = b
+// SVD solver for least-squares problems: A*x = b
 // Returns {coefficients, residuals, condition_number, rank}
 struct LSFitResult {
     vector<double> coeffs;      // Fitted coefficients
@@ -818,7 +817,7 @@ int main()
     // ── §2: PN coefficient extraction via ε polynomial fitting ────────────────
     // UPGRADED: Using SVD-based fitting with uncertainty estimation
     bar('=');
-    cout << " §2  PN coefficient extraction — SVD-based polynomial fit (RESEARCH-GRADE)\n";
+    cout << " §2  PN coefficient extraction — SVD-based polynomial fit\n";
     bar('=');
     cout << "\n dp/dtheta = eps^5*A_25 + eps^7*A_35 + eps^8*A_4 + eps^9*A_45 + ...\n";
     cout << " de/dtheta = eps^5*B_25 + eps^7*B_35 + eps^8*B_4 + eps^9*B_45 + ...\n";
@@ -1046,7 +1045,7 @@ int main()
     // ── §4: Final scorecard ───────────────────────────────────────────────────
     cout << "\n";
     bar('=');
-    cout << " §4  RESEARCH-GRADE VALIDATION SUMMARY\n";
+    cout << " §4  VALIDATION SUMMARY\n";
     bar('=');
     cout << "\n VALIDATION METRICS:\n";
     cout << " • PN Consistency:       " << (consistency.is_consistent ? "PASS ✓" : "WARN ⚠") << "\n";
@@ -1095,7 +1094,7 @@ int main()
          << "   JF=" << wins_jf << "\n\n";
 
     bar('*',75);
-    cout << " RESEARCH-GRADE VALIDATION RESULT:\n";
+    cout << " VALIDATION RESULT:\n";
     if(consistency.consistency_score > 0.95 && conv_test.converged) {
         cout << " ✓✓✓ EXCELLENT — Code is production-ready for publication\n";
         cout << "     • PN orders consistent across all terms\n";
