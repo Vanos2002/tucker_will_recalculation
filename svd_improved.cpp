@@ -749,7 +749,7 @@ int main()
 
     // Test parameters
     const double p0     = 20.0;
-    const double e0     = 0.0000000001;
+    const double e0     = 0.00000001;
     const double alpha0 = e0;
     const double beta0  = 0.0;
     const int    PNord  = 3;
@@ -822,8 +822,7 @@ int main()
     bar('=');
     cout << "\n dp/dtheta = eps^5*A_25 + eps^7*A_35 + eps^8*A_4 + eps^9*A_45 + ...\n";
     cout << " de/dtheta = eps^5*B_25 + eps^7*B_35 + eps^8*B_4 + eps^9*B_45 + ...\n";
-    cout << "\n IMPROVEMENTS:\n";
-    cout << "  • SVD-based solver (better conditioning than Gaussian elimination)\n";
+    cout << "  • SVD-based solver\n";
     cout << "  • Uncertainty estimation from residuals & covariance\n";
     cout << "  • Richardson extrapolation for averaging convergence\n";
     cout << "  • Fit range: eps in [0.006, 0.09], log-spaced for robustness\n\n";
