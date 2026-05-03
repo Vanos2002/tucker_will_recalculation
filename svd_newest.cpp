@@ -953,12 +953,12 @@ double computePhiScaling(double eps, int order = 0) {
     double eps_inv = 1.0 / eps;
     double phi_scale = 0.0;
     
-    // Leading term: phi_(0)/eps^(5/2)
-    phi_scale += 1.0 / pow(eps_inv, 2.5);
+    // Leading term: phi_(0)/eps^(5/2) = eps^(-5/2)
+    phi_scale += pow(eps_inv, 2.5);
     
     // Higher order terms if needed
     if (order >= 2) {
-        phi_scale += 1.0 / pow(eps_inv, 3.5);  // phi_(2)/eps^(7/2)
+        phi_scale += pow(eps_inv, 3.5);  // phi_(2)/eps^(7/2)
     }
     
     return phi_scale;
