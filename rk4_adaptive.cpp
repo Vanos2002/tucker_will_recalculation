@@ -1044,6 +1044,7 @@ RK4QLTStep rk4_qlt_adaptive_step(const PNCoeffs& K, double p, double alpha, doub
     }
     
     // Fallback
+    double e = sqrt(alpha * alpha + beta * beta);
     double alpha_new = (e + 0.001) * cos(angle);
     double beta_new = (e + 0.001) * sin(angle);
     dp_actual = dp;
@@ -1086,6 +1087,62 @@ IntegrationResult integrateOscillatory(double p_init, double p_final,
     }
     
     return {p_final, theta, 0.0, (double)n_steps, eps};
+}
+
+struct RK4TWStep {
+    double p, e, theta;
+    int n_function_evals;
+};
+
+RK4TWStep rk4_tw_adaptive_step(double p, double e, double theta,
+                                double dp_target, double c_val, double& dp_actual)
+{
+    const double tol = 1e-6;
+    double dp = dp_target;
+    double h_min = dp_target * 0.01;
+    int n_evals = 0;
+
+    for (int attempt = 0; attempt < 10; ++attempt) {
+        double x1 = x_TW(p);
+        double dp_dth1 = dp_TW_dtheta(e, x1);
+        double de_dth1 = de_TW_dtheta(e, x1);
+        double dth_dp1 = 1.0 / (fabs(dp_dth1) < 1e-16 ? 1e-16 : dp_dth1);
+        n_evals++;
+
+        double x2 = x_TW(p + 0.5*dp);
+        double dp_dth2 = dp_TW_dtheta(e + 0.5*de_dth1*dth_dp1*dp, x2);
+        double de_dth2 = de_TW_dtheta(e + 0.5*de_dth1*dth_dp1*dp, x2);
+        double dth_dp2 = 1.0 / (fabs(dp_dth2) < 1e-16 ? 1e-16 : dp_dth2);
+        n_evals++;
+
+        double x3 = x_TW(p + 0.5*dp);
+        double dp_dth3 = dp_TW_dtheta(e + 0.5*de_dth2*dth_dp2*dp, x3);
+        double de_dth3 = de_TW_dtheta(e + 0.5*de_dth2*dth_dp2*dp, x3);
+        double dth_dp3 = 1.0 / (fabs(dp_dth3) < 1e-16 ? 1e-16 : dp_dth3);
+        n_evals++;
+
+        double x4 = x_TW(p + dp);
+        double dp_dth4 = dp_TW_dtheta(e + de_dth3*dth_dp3*dp, x4);
+        double de_dth4 = de_TW_dtheta(e + de_dth3*dth_dp3*dp, x4);
+        double dth_dp4 = 1.0 / (fabs(dp_dth4) < 1e-16 ? 1e-16 : dp_dth4);
+        n_evals++;
+
+        double theta_new = theta + (dp/6.0)*(dth_dp1 + 2*dth_dp2 + 2*dth_dp3 + dth_dp4);
+        double de_new = (1.0/6.0)*(de_dth1*dth_dp1 + 2*de_dth2*dth_dp2
+                                  + 2*de_dth3*dth_dp3 + de_dth4*dth_dp4) * dp;
+        double e_new = e + de_new;
+
+        double error = fabs(de_new) * 0.01;
+        if (error < tol || dp <= h_min) {
+            dp_actual = dp;
+            return {p + dp, e_new, theta_new, n_evals};
+        }
+        dp *= 0.5;
+        if (dp < h_min) dp = h_min;
+    }
+
+    dp_actual = dp;
+    return {p + dp, e + 0.001, theta + 0.001, n_evals};
 }
 
 IntegrationResult integrateTW(double p_init, double p_final,
