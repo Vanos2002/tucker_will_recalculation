@@ -236,6 +236,10 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
 // JAN FEREISL RESULTS FOR EVOLUTION
 //-----------------------------------------------
 
+
+
+
+
 // Physical constants and parameters
 struct PhysicalParams {
     double G;      // Gravitational constant
@@ -620,51 +624,108 @@ SecularRHS compute_secular_RHS(const BinaryState& state, const PhysicalParams& p
 // TUCKER-WILL RESULTS FOR EVOLUTION (ONLY DIFFER AT 4.5 PN ORDER)
 //----------------------------------------------------------------
 
-
-
-// dp/dtheta, dalpha/dtheta, dbeta/dtheta at 4.5 PN order according to Tucker-Will (transformed eq. 2.18a, 2.18b in their paper)
-
-double dp_dtheta_TW_4_5PN(double pt, double eta, double alpha_t, double beta_t, double G, double M) {
-    double s = alpha_t*alpha_t + beta_t*beta_t;  // spin sum
-    double s2 = s * s;
-    double s3 = s2 * s;
-    
-    double poly = -8272600.0 
-                + 72.0 * eta * (-29041.0 + 4032.0 * eta)
-                + 9.0 * s3 * (527.0 + 84.0 * eta * (-75.0 + 632.0 * eta))
-                + 12.0 * s * (-64831.0 + 9.0 * eta * (131801.0 + 7175.0 * eta))
-                + s2 * (947991.0 + 27.0 * eta * (-199495.0 + 147728.0 * eta));
-    
-    return (pt * eta * poly) / (11340.0 * pow(pt / (G * M), 4.5));
+// Tucker-Will orders 1PN through 3.5PN are identical to Fereisl - use aliases
+inline SecularRHS secular_1PN_TW(const BinaryState& state, const PhysicalParams& params) {
+    return secular_1PN(state, params);
 }
 
-
-double dalpha_dtheta_TW_4_5PN(double pt, double eta, double alpha_t, double beta_t, double G, double M) {
-    double s = alpha_t * alpha_t + beta_t * beta_t;  // spin sum
-    double s2 = s * s;
-    double s3 = s2 * s;
-    
-    double poly = 43837360.0 
-                + 144.0 * eta * (154951.0 - 16128.0 * eta)
-                + 9.0 * s3 * (8615.0 + 4.0 * eta * (6565.0 - 30128.0 * eta))
-                - 12.0 * s * (-354911.0 + 4848303.0 * eta + 511413.0 * eta * eta)
-                - 2.0 * s2 * (605645.0 + 9.0 * eta * (-898433.0 + 639856.0 * eta));
-    
-    return -(alpha_t * eta * poly) / (30240.0 * pow(pt / (G * M), 4.5));
+inline std::array<double, 3> oscillatory_1PN_TW(const BinaryState& state, const PhysicalParams& params) {
+    return oscillatory_1PN(state, params);
 }
 
+inline SecularRHS secular_2PN_TW(const BinaryState& state, const PhysicalParams& params) {
+    return secular_2PN(state, params);
+}
 
+inline std::array<double, 3> oscillatory_2PN_TW(const BinaryState& state, const PhysicalParams& params) {
+    return oscillatory_2PN(state, params);
+}
 
-double dbeta_dtheta_TW_4_5PN(double pt, double eta, double alpha_t, double beta_t, double G, double M) {
-    double s = alpha_t * alpha_t + beta_t * beta_t;  // spin sum
-    double s2 = s * s;
-    double s3 = s2 * s;
+inline SecularRHS secular_2_5PN_TW(const BinaryState& state, const PhysicalParams& params) {
+    return secular_2_5PN(state, params);
+}
+
+inline SecularRHS secular_3_5PN_TW(const BinaryState& state, const PhysicalParams& params) {
+    return secular_3_5PN(state, params);
+}
+
+// ============================================================================
+// 4.5 PN ORDER TERMS (Tucker-Will) - Only difference from Fereisl
+// ============================================================================
+
+SecularRHS secular_4_5PN_TW(const BinaryState& state, const PhysicalParams& params) {
+    const double& p = state.p;
+    const double& alpha = state.alpha;
+    const double& beta = state.beta;
+    const double& eta = params.eta;
+    const double GM = params.G * params.M;
+    const double GM4 = GM * GM * GM * GM;
     
-    double poly = 43837360.0 
-                + 144.0 * eta * (154951.0 - 16128.0 * eta)
-                + 9.0 * s3 * (8615.0 + 4.0 * eta * (6565.0 - 30128.0 * eta))
-                - 12.0 * s * (-354911.0 + 4848303.0 * eta + 511413.0 * eta * eta)
-                - 2.0 * s2 * (605645.0 + 9.0 * eta * (-898433.0 + 639856.0 * eta));
+    SecularRHS rhs;
     
-    return -(beta_t * eta * poly) / (30240.0 * pow(pt / (G * M), 4.5));
+    double sqrt_GMp = std::sqrt(GM * p);
+    double GMp_5_2 = sqrt_GMp * sqrt_GMp * sqrt_GMp * sqrt_GMp * sqrt_GMp;
+    
+    double a2 = alpha * alpha;
+    double b2 = beta * beta;
+    double a4 = a2 * a2;
+    double b4 = b2 * b2;
+    double a6 = a4 * a2;
+    double b6 = b4 * b2;
+    
+    double eta2 = eta * eta;
+    
+    // dp/dtheta (Tucker-Will 4.5PN)
+    double term_p = -8272600.0 
+                  + 72.0 * eta * (-29041.0 + 4032.0 * eta)
+                  + 9.0 * a6 * (527.0 + 84.0 * eta * (-75.0 + 632.0 * eta))
+                  + 9.0 * b6 * (527.0 + 84.0 * eta * (-75.0 + 632.0 * eta))
+                  + 12.0 * b2 * (-64831.0 + 9.0 * eta * (131801.0 + 7175.0 * eta))
+                  + b4 * (947991.0 + 27.0 * eta * (-199495.0 + 147728.0 * eta))
+                  + a4 * (9.0 * b2 * (527.0 + 84.0 * eta * (-75.0 + 632.0 * eta)) + 
+                         (947991.0 + 27.0 * eta * (-199495.0 + 147728.0 * eta)))
+                  + a2 * (12.0 * (-64831.0 + 9.0 * eta * (131801.0 + 7175.0 * eta)) + 
+                         9.0 * b4 * (527.0 + 84.0 * eta * (-75.0 + 632.0 * eta)) + 
+                         b2 * (2.0 * (947991.0 + 27.0 * eta * (-199495.0 + 147728.0 * eta))));
+    
+    rhs[0] = (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
+    
+    // dalpha/dtheta (Tucker-Will 4.5PN)
+    double term_alpha = 43837360.0 
+                      + 144.0 * eta * (154951.0 - 16128.0 * eta)
+                      + 9.0 * a6 * (8615.0 + 4.0 * eta * (6565.0 - 30128.0 * eta))
+                      + 9.0 * b6 * (8615.0 + 4.0 * eta * (6565.0 - 30128.0 * eta))
+                      - 12.0 * b2 * (-354911.0 + 4848303.0 * eta + 511413.0 * eta * eta)
+                      - 2.0 * b4 * (605645.0 + 9.0 * eta * (-898433.0 + 639856.0 * eta))
+                      + a4 * (9.0 * b2 * (8615.0 + 4.0 * eta * (6565.0 - 30128.0 * eta)) + 
+                             (-2.0) * (605645.0 + 9.0 * eta * (-898433.0 + 639856.0 * eta)))
+                      + a2 * (9.0 * b4 * (8615.0 + 4.0 * eta * (6565.0 - 30128.0 * eta)) + 
+                             (-12.0) * (-354911.0 + 4848303.0 * eta + 511413.0 * eta * eta) + 
+                             (-4.0) * b2 * (605645.0 + 9.0 * eta * (-898433.0 + 639856.0 * eta)));
+    
+    rhs[1] = -(alpha * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
+    
+    // dbeta/dtheta (Tucker-Will 4.5PN - same as dalpha but with beta)
+    rhs[2] = -(beta * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
+    
+    return rhs;
+}
+
+// ============================================================================
+// COMPOSITE FUNCTIONS - COMBINING ALL PN ORDERS (Tucker-Will)
+// ============================================================================
+
+SecularRHS compute_secular_RHS_TW(const BinaryState& state, const PhysicalParams& params, int max_PN_order) {
+    // Tucker-Will equations are identical to Fereisl for orders 1-3.5PN
+    SecularRHS total_rhs = compute_secular_RHS(state, params, std::min(max_PN_order, 4));
+    
+    // Replace 4.5PN order with Tucker-Will version
+    if (max_PN_order >= 5) {
+        auto rhs_TW_4_5 = secular_4_5PN_TW(state, params);
+        total_rhs[0] += rhs_TW_4_5[0];
+        total_rhs[1] += rhs_TW_4_5[1];
+        total_rhs[2] += rhs_TW_4_5[2];
+    }
+    
+    return total_rhs;
 }
