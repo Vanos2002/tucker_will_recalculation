@@ -277,10 +277,6 @@ static QLTrhs scaleQLT(const QLTrhs& a, double s) {
     return {a.dp * s, a.dalpha * s, a.dbeta * s};
 }
 
-static double stateStep(double x) {
-    return std::max(1e-5, 1e-5 * std::max(1.0, std::abs(x)));
-}
-
 static QLTrhs computeQLTDissipativeOrder(const PNCoeffs& K,
                                         const BinaryState& state,
                                         const PhysicalParams& params,
@@ -332,111 +328,7 @@ static QLTrhs averageQLTRHS(const std::function<QLTrhs(double)>& f, int samples 
     return scaleQLT(sum, scale);
 }
 
-static QLTrhs stateDerivative(const QLTrhsFunc& f, const BinaryState& state, int varIndex) {
-    BinaryState plus = state;
-    BinaryState minus = state;
-    double h = 0.0;
-    switch (varIndex) {
-        case 0:
-            h = stateStep(state.p);
-            plus.p += h;
-            minus.p -= h;
-            break;
-        case 1:
-            h = stateStep(state.alpha);
-            plus.alpha += h;
-            minus.alpha -= h;
-            break;
-        case 2:
-            h = stateStep(state.beta);
-            plus.beta += h;
-            minus.beta -= h;
-            break;
-    }
-    return scaleQLT(subQLT(f(plus), f(minus)), 1.0 / (2.0 * h));
-}
 
-static std::array<QLTrhs, 3> stateGradient(const QLTrhsFunc& f, const BinaryState& state) {
-    return { stateDerivative(f, state, 0), stateDerivative(f, state, 1), stateDerivative(f, state, 2) };
-}
-
-static QLTrhs stateSecondDerivative(const QLTrhsFunc& f, const BinaryState& state, int i, int j) {
-    double hi = (i == 0 ? stateStep(state.p) : (i == 1 ? stateStep(state.alpha) : stateStep(state.beta)));
-    double hj = (j == 0 ? stateStep(state.p) : (j == 1 ? stateStep(state.alpha) : stateStep(state.beta)));
-
-    if (i == j) {
-        BinaryState plus = state;
-        BinaryState minus = state;
-        if (i == 0) {
-            plus.p += hi;
-            minus.p -= hi;
-        } else if (i == 1) {
-            plus.alpha += hi;
-            minus.alpha -= hi;
-        } else {
-            plus.beta += hi;
-            minus.beta -= hi;
-        }
-        QLTrhs f0 = f(state);
-        QLTrhs fp = f(plus);
-        QLTrhs fm = f(minus);
-        return scaleQLT(addQLT(subQLT(fp, scaleQLT(f0, 2.0)), fm), 1.0 / (hi * hi));
-    }
-
-    BinaryState pp = state;
-    BinaryState pm = state;
-    BinaryState mp = state;
-    BinaryState mm = state;
-    if (i == 0) {
-        pp.p += hi;
-        pm.p += hi;
-        mp.p -= hi;
-        mm.p -= hi;
-    } else if (i == 1) {
-        pp.alpha += hi;
-        pm.alpha += hi;
-        mp.alpha -= hi;
-        mm.alpha -= hi;
-    } else {
-        pp.beta += hi;
-        pm.beta += hi;
-        mp.beta -= hi;
-        mm.beta -= hi;
-    }
-    if (j == 0) {
-        pp.p += hj;
-        pm.p -= hj;
-        mp.p += hj;
-        mm.p -= hj;
-    } else if (j == 1) {
-        pp.alpha += hj;
-        pm.alpha -= hj;
-        mp.alpha += hj;
-        mm.alpha -= hj;
-    } else {
-        pp.beta += hj;
-        pm.beta -= hj;
-        mp.beta += hj;
-        mm.beta -= hj;
-    }
-
-    QLTrhs fpp = f(pp);
-    QLTrhs fpm = f(pm);
-    QLTrhs fmp = f(mp);
-    QLTrhs fmm = f(mm);
-
-    return scaleQLT(subQLT(subQLT(fpp, fpm), subQLT(fmp, fmm)), 1.0 / (4.0 * hi * hj));
-}
-
-static std::array<std::array<QLTrhs, 3>, 3> stateHessian(const QLTrhsFunc& f, const BinaryState& state) {
-    std::array<std::array<QLTrhs, 3>, 3> hessian;
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            hessian[i][j] = stateSecondDerivative(f, state, i, j);
-        }
-    }
-    return hessian;
-}
 
 static SecularRHS secular_2_5PN_explicit(const PNCoeffs& K,
                                           const BinaryState& state,
@@ -461,22 +353,11 @@ static SecularRHS secular_3_5PN_explicit(const PNCoeffs& K,
         PhysicalParams pphi = params;
         pphi.phi = phi;
 
+        // Only include the averaged 3.5PN dissipative contribution (no analytic corrections)
         QLTrhs F35 = computeQLTDissipativeOrder(K, state, pphi, 2);
-        auto Y1 = oscillatory_1PN(state, pphi);
-        QLTrhsFunc F25_func = [&](const BinaryState& s) {
-            PhysicalParams ps = pphi;
-            return computeQLTDissipativeOrder(K, s, ps, 1);
-        };
-        auto gradF25 = stateGradient(F25_func, state);
-
-        QLTrhs corr;
-        corr.dp = gradF25[0].dp * Y1[0] + gradF25[1].dp * Y1[1] + gradF25[2].dp * Y1[2];
-        corr.dalpha = gradF25[0].dalpha * Y1[0] + gradF25[1].dalpha * Y1[1] + gradF25[2].dalpha * Y1[2];
-        corr.dbeta = gradF25[0].dbeta * Y1[0] + gradF25[1].dbeta * Y1[1] + gradF25[2].dbeta * Y1[2];
-
-        result[0] += (F35.dp + corr.dp);
-        result[1] += (F35.dalpha + corr.dalpha);
-        result[2] += (F35.dbeta + corr.dbeta);
+        result[0] += F35.dp;
+        result[1] += F35.dalpha;
+        result[2] += F35.dbeta;
     }
     double scale = h / (2.0 * PI);
     result[0] *= scale;
@@ -496,45 +377,11 @@ static SecularRHS secular_4_5PN_explicit(const PNCoeffs& K,
         PhysicalParams pphi = params;
         pphi.phi = phi;
 
+        // Only include the averaged 4.5PN dissipative contribution (no analytic corrections)
         QLTrhs F45 = computeQLTDissipativeOrder(K, state, pphi, 3);
-        QLTrhsFunc F35_func = [&](const BinaryState& s) {
-            PhysicalParams ps = pphi;
-            return computeQLTDissipativeOrder(K, s, ps, 2);
-        };
-        QLTrhsFunc F25_func = [&](const BinaryState& s) {
-            PhysicalParams ps = pphi;
-            return computeQLTDissipativeOrder(K, s, ps, 1);
-        };
-
-        auto Y1 = oscillatory_1PN(state, pphi);
-        auto Y2 = oscillatory_2PN(state, pphi);
-        auto gradF35 = stateGradient(F35_func, state);
-        auto gradF25 = stateGradient(F25_func, state);
-        auto hessF25 = stateHessian(F25_func, state);
-
-        QLTrhs corr1;
-        corr1.dp = gradF35[0].dp * Y1[0] + gradF35[1].dp * Y1[1] + gradF35[2].dp * Y1[2];
-        corr1.dalpha = gradF35[0].dalpha * Y1[0] + gradF35[1].dalpha * Y1[1] + gradF35[2].dalpha * Y1[2];
-        corr1.dbeta = gradF35[0].dbeta * Y1[0] + gradF35[1].dbeta * Y1[1] + gradF35[2].dbeta * Y1[2];
-
-        QLTrhs corr2;
-        corr2.dp = gradF25[0].dp * Y2[0] + gradF25[1].dp * Y2[1] + gradF25[2].dp * Y2[2];
-        corr2.dalpha = gradF25[0].dalpha * Y2[0] + gradF25[1].dalpha * Y2[1] + gradF25[2].dalpha * Y2[2];
-        corr2.dbeta = gradF25[0].dbeta * Y2[0] + gradF25[1].dbeta * Y2[1] + gradF25[2].dbeta * Y2[2];
-
-        QLTrhs corr3{0.0, 0.0, 0.0};
-        for (int j = 0; j < 3; ++j) {
-            for (int k = 0; k < 3; ++k) {
-                double weight = Y1[j] * Y1[k];
-                corr3.dp += hessF25[j][k].dp * weight;
-                corr3.dalpha += hessF25[j][k].dalpha * weight;
-                corr3.dbeta += hessF25[j][k].dbeta * weight;
-            }
-        }
-
-        result[0] += (F45.dp + corr1.dp + corr2.dp + 0.5 *corr3.dp);
-        result[1] += (F45.dalpha + corr1.dalpha + corr2.dalpha + 0.5 * corr3.dalpha);
-        result[2] += (F45.dbeta + corr1.dbeta + corr2.dbeta + 0.5 * corr3.dbeta);
+        result[0] += F45.dp;
+        result[1] += F45.dalpha;
+        result[2] += F45.dbeta;
     }
     double scale = h / (2.0 * PI);
     result[0] *= scale;
@@ -822,7 +669,7 @@ SecularRHS secular_4_5PN(const BinaryState& state, const PhysicalParams& params)
     const double GM4 = GM * GM * GM * GM;
     
 
-    // Tucker-Will Results beyoond
+    // Tucker-Will Results beyond
     SecularRHS rhs;
     
     double sqrt_GMp = std::sqrt(GM * p);
